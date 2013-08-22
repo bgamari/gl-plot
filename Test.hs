@@ -1,13 +1,17 @@
+import Control.Monad (when)
 import Control.Concurrent (threadDelay, forkIO)
 import qualified Data.Vector.Storable as V
-import qualified Graphics.UI.GLUT as GLUT
-import Graphics.UI.GLUT (GLfloat, Color4(..))
+import qualified Graphics.UI.GLFW as GLFW
+import Graphics.Rendering.OpenGL.GL (GLfloat, Color4(..))
 import Graphics.Rendering.GLPlot
 import Control.Lens
 import Linear
 
 main = do
-    GLUT.getArgsAndInitialize
+    result <- GLFW.init
+    when (not result) $ error "Failed to initialize GLFW"
+    GLFW.setErrorCallback $ Just $ \err s->do error s
+
     plot <- newPlot "Hello World!"
     setLimits plot $ Rect (V2 (-2) (-2)) (V2 2 2)
     let update t = do
@@ -21,7 +25,7 @@ main = do
         threadDelay 30000
         update $ t + 1e-5
     forkIO $ update 2
-    GLUT.mainLoop
+    mainLoop plot
 
 plotData :: GLfloat -> V.Vector (V2 GLfloat)
 plotData t =

@@ -6,19 +6,23 @@ module Graphics.Rendering.GLPlot ( newPlot
                                  , Curve, cColor, cPoints, cStyle
                                  , defaultCurve
                                  , Rect(..)
-                                   -- * Convenient re-exports
+                                   -- * A simple main loop
                                  , mainLoop
                                  ) where
 
 import Data.Foldable
 import Control.Lens
-import Control.Monad (when)
+import Data.Maybe (fromMaybe)
+import Control.Monad (when, forever, void, liftM)
 import Linear
 
 import Foreign.ForeignPtr.Safe
 import qualified Data.Vector.Storable as V
-import Graphics.UI.GLUT as GLUT hiding (Rect, Points, Lines)
+import Graphics.UI.GLFW as GLFW
+import Graphics.Rendering.OpenGL.GL as GL hiding (Rect, Points, Lines)
+import Graphics.Rendering.OpenGL.GLU as GLU
 import qualified Graphics.Rendering.OpenGL.GL.PrimitiveMode as PrimitiveMode
+import Control.Concurrent
 import Control.Concurrent.STM
 
 import Graphics.Rendering.GLPlot.Types
@@ -29,7 +33,9 @@ maxUpdateRate = 30  -- frames per second
 -- Be sure to invoke the GLUT @mainLoop@.
 newPlot :: String -> IO Plot
 newPlot title = do
-    window <- GLUT.createWindow title
+    window <- fromMaybe (error "GLPlot: Failed to create window")
+              `liftM` GLFW.createWindow 400 300 title Nothing Nothing
+    GLFW.makeContextCurrent $ Just window
     curves <- newTVarIO []
     needsRedraw <- newTVarIO False
     timerRunning <- newTVarIO False
@@ -42,22 +48,29 @@ newPlot title = do
                     , _pNeedsRedraw  = needsRedraw
                     , _pTimerRunning = timerRunning
                     }
-    displayCallback $= display plot
+    setFramebufferSizeCallback window $ Just $ \_ w h->do
+        viewport $= (Position 0 0, Size (fromIntegral w) (fromIntegral h))
     return plot
 
+mainLoop :: Plot -> IO ()
+mainLoop plot = do
+    GLFW.waitEvents
+    close <- windowShouldClose (plot ^. pWindow)
+    when (not close) $ mainLoop plot
+    
 setLimits :: Plot -> Rect GLdouble -> IO ()
 setLimits plot = scheduleUpdate plot . writeTVar (plot ^. pLimits)
 
 startTimer :: Plot -> IO ()
 startTimer plot = do
     running <- atomically $ swapTVar (plot ^. pTimerRunning) True
-    when (not running) setTimer
-  where setTimer = do
-            addTimerCallback (1000 `div` maxUpdateRate) $ do
-                needed <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
-                if needed
-                  then postRedisplay (Just $ plot ^. pWindow) >> setTimer
-                  else atomically $ writeTVar (plot ^. pTimerRunning) False
+    when (not running) $ void $ forkIO worker
+  where worker = do
+            threadDelay (1000000 `div` maxUpdateRate)
+            needed <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
+            if needed
+                then display plot >> worker
+                else atomically $ writeTVar (plot ^. pTimerRunning) False
 
 updateCurves :: Plot -> [Curve] -> IO ()
 updateCurves plot = scheduleUpdate plot . writeTVar (plot ^. pCurves)
@@ -67,7 +80,7 @@ scheduleUpdate plot update = do
     timerRunning <- atomically $ do update
                                     writeTVar (plot ^. pNeedsRedraw) True
                                     readTVar (plot ^. pTimerRunning)
-    when (not timerRunning) $ startTimer plot >> postRedisplay (Just $ plot ^. pWindow)
+    when (not timerRunning) $ startTimer plot
 
 display :: Plot -> IO ()
 display plot = do
@@ -76,12 +89,14 @@ display plot = do
     Rect a b <- atomically $ readTVar (plot ^. pLimits)
     matrixMode $= Projection
     loadIdentity
-    ortho2D (a^._x) (b^._x) (a^._y) (b^._y)
+    GLU.ortho2D (a^._x) (b^._x) (a^._y) (b^._y)
     curves <- atomically $ readTVar (plot^.pCurves)
     forM_ curves $ \c->do
         currentColor $= c^.cColor
         drawVector plot (c^.cStyle) (c^.cPoints)
-    flush
+    finish
+    GLFW.swapBuffers (plot ^. pWindow)
+    putStrLn "hi"
 
 drawVector :: Plot -> Style -> V.Vector (V2 GLfloat) -> IO ()
 drawVector plot style v =

@@ -18,7 +18,7 @@ library
   build-depends:       base >=4.6,
                        vector >=0.10,
                        OpenGL,
-                       GLUT >=2.4,
+                       GLFW-b,
                        linear >=1.1,
                        lens >=3.9,
                        stm >=2.4
@@ -29,7 +29,7 @@ executable glplot-test
   build-depends:       base >=4.6,
                        vector >=0.10,
                        OpenGL,
-                       GLUT >=2.4,
+                       GLFW-b,
                        linear >=1.1,
                        lens >=3.9,
                        stm >=2.4

@@ -4,7 +4,8 @@ module Graphics.Rendering.GLPlot.Types where
 
 import Control.Lens
 import Linear
-import Graphics.UI.GLUT as GLUT hiding (Rect, Points, Lines)
+import Graphics.UI.GLFW as GLFW
+import Graphics.Rendering.OpenGL.GL hiding (Points, Lines, Rect)
 import qualified Data.Vector.Storable as V
 import Control.Concurrent.STM
 
