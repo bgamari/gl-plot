@@ -7,7 +7,7 @@ import Linear
 main = do
     GLUT.getArgsAndInitialize
     plot <- newPlot "Hello World!"
-    setLimits plot $ Rect (V2 0 0) (V2 2 3)
+    setLimits plot $ Rect (V2 (-2) (-2)) (V2 2 2)
     let update t = do
         updateCurves plot [ Curve (Color4 0 0 0 0) (plotData t)
                           , Curve (Color4 1 0 0 0) (V.map (+0.1) $ plotData t)
@@ -18,4 +18,6 @@ main = do
     GLUT.mainLoop
 
 plotData :: GLfloat -> V.Vector (V2 GLfloat)
-plotData t = V.map (\t->V2 (cos t) (sin t)) (V.enumFromThenTo t (t+0.02) (t+pi))
+plotData t =
+    V.map (\t->V2 (cos t) (sin $ sin $ t*sqrt 2))
+          (V.enumFromThenTo t (t+0.01) (t+200))
