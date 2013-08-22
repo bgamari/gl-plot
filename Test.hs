@@ -8,7 +8,9 @@ main = do
     GLUT.getArgsAndInitialize
     plot <- newPlot "Hello World!"
     let update t = do
-        updateCurves plot [Curve (Color4 0 0 0 0) (plotData t)]
+        updateCurves plot [ Curve (Color4 0 0 0 0) (plotData t)
+                          , Curve (Color4 1 0 0 0) (V.map (+0.1) $ plotData t)
+                          ]
         threadDelay 30000
         update $ t + 1
     forkIO $ update 0
