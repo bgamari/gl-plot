@@ -26,11 +26,23 @@ defaultCurve = Curve { _cColor  = Color4 0 0 0 0
 
 data Rect a = Rect (V2 a) (V2 a)
 
+data LegendEntry = LegendEntry { _lName       :: !String
+                               , _lColor      :: !(Color4 GLfloat)
+                               }
+                 deriving (Eq)
+                               
+data CachedLegend = CachedLegend { _clEntries :: [LegendEntry]
+                                 , _clTexture :: !TextureObject 
+                                 , _clSize    :: V2 Int
+                                 }
+makeLenses ''CachedLegend
+
 data Plot = Plot { _pWindow       :: !Window
                  , _pPointBuffer  :: !BufferObject
                  , _pCurves       :: !(TVar [Curve])
                  , _pLimits       :: !(TVar (Rect GLdouble))
                  , _pNeedsRedraw  :: !(TVar Bool)
                  , _pTimerRunning :: !(TVar Bool)
+                 , _pLegendCache  :: !(TVar CachedLegend)
                  }
 makeLenses ''Plot

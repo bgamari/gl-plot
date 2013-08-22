@@ -10,6 +10,7 @@ module Graphics.Rendering.GLPlot ( newPlot
                                  , mainLoop
                                  ) where
 
+import Prelude hiding (mapM_)
 import Data.Foldable
 import Control.Lens
 import Control.Monad (when)
@@ -22,6 +23,7 @@ import qualified Graphics.Rendering.OpenGL.GL.PrimitiveMode as PrimitiveMode
 import Control.Concurrent.STM
 
 import Graphics.Rendering.GLPlot.Types
+import Graphics.Rendering.GLPlot.Legend
 
 maxUpdateRate = 30  -- frames per second
 
@@ -34,6 +36,8 @@ newPlot title = do
     needsRedraw <- newTVarIO False
     timerRunning <- newTVarIO False
     limits <- newTVarIO $ Rect (V2 0 0) (V2 1 1)
+    (legendTexture:_) <- genObjectNames 1
+    legendCache <- newTVarIO $ CachedLegend [] legendTexture (V2 0 0)
     (pointBuffer:_) <- genObjectNames 1
     let plot = Plot { _pWindow       = window
                     , _pPointBuffer  = pointBuffer
@@ -41,6 +45,7 @@ newPlot title = do
                     , _pLimits       = limits
                     , _pNeedsRedraw  = needsRedraw
                     , _pTimerRunning = timerRunning
+                    , _pLegendCache  = legendCache
                     }
     displayCallback $= display plot
     return plot
@@ -75,12 +80,28 @@ display plot = do
     clear [ColorBuffer]
     Rect a b <- atomically $ readTVar (plot ^. pLimits)
     matrixMode $= Projection
+
     loadIdentity
     ortho2D (a^._x) (b^._x) (a^._y) (b^._y)
     curves <- atomically $ readTVar (plot^.pCurves)
     forM_ curves $ \c->do
         currentColor $= c^.cColor
         drawVector plot (c^.cStyle) (c^.cPoints)
+
+    loadIdentity
+    (tex, size) <- getLegend plot
+    activeTexture $= TextureUnit 0
+    texture Texture2D $= Enabled
+    defineNewList CompileAndExecute $ renderPrimitive Quads $
+        let vertices :: [(TexCoord2 GLfloat, Vertex2 GLfloat)]
+            vertices = [ (TexCoord2 1 1, Vertex2 0 0)
+                       , (TexCoord2 1 0, Vertex2 0 1)
+                       , (TexCoord2 0 0, Vertex2 1 1)
+                       , (TexCoord2 0 1, Vertex2 1 0)
+                       ]
+        in mapM_ (\(a,b)->texCoord a >> vertex b) vertices
+    texture Texture2D $= Disabled
+
     flush
 
 drawVector :: Plot -> Style -> V.Vector (V2 GLfloat) -> IO ()

@@ -21,7 +21,9 @@ library
                        GLUT >=2.4,
                        linear >=1.1,
                        lens >=3.9,
-                       stm >=2.4
+                       stm >=2.4,
+                       cairo,
+                       bytestring
 
 executable glplot-test
   main-is:             Test.hs
@@ -32,4 +34,6 @@ executable glplot-test
                        GLUT >=2.4,
                        linear >=1.1,
                        lens >=3.9,
-                       stm >=2.4
+                       stm >=2.4,
+                       cairo,
+                       bytestring
