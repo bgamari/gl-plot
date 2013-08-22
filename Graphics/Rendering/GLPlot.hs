@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Graphics.Rendering.GLPlot ( newPlot
                                  , Plot
                                  , updateCurves
@@ -23,31 +21,9 @@ import Graphics.UI.GLUT as GLUT hiding (Rect, Points, Lines)
 import qualified Graphics.Rendering.OpenGL.GL.PrimitiveMode as PrimitiveMode
 import Control.Concurrent.STM
 
+import Graphics.Rendering.GLPlot.Types
+
 maxUpdateRate = 30  -- frames per second
-
-data Style = Lines | Points
-
-data Curve = Curve { _cColor   :: !(Color4 GLfloat)
-                   , _cPoints  :: !(V.Vector (V2 GLfloat))
-                   , _cStyle   :: !Style
-                   }
-makeLenses ''Curve
-
-defaultCurve :: Curve
-defaultCurve = Curve { _cColor  = Color4 0 0 0 0
-                     , _cPoints = V.empty
-                     , _cStyle  = Points
-                     }
-
-data Rect a = Rect (V2 a) (V2 a)
-
-data Plot = Plot { _pWindow       :: !Window
-                 , _pCurves       :: !(TVar [Curve])
-                 , _pLimits       :: !(TVar (Rect GLdouble))
-                 , _pNeedsRedraw  :: !(TVar Bool)
-                 , _pTimerRunning :: !(TVar Bool)
-                 }
-makeLenses ''Plot
 
 -- | GLUT must be initialized before this is called.
 -- Be sure to invoke the GLUT @mainLoop@.
