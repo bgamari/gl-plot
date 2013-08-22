@@ -93,7 +93,7 @@ drawVector plot style v =
         array = plot ^. pPointBuffer
     in withForeignPtr fptr $ \ptr->do
         bindBuffer ElementArrayBuffer $= Just array
-        bufferData ArrayBuffer $= (ptrSize, ptr, StaticDraw)
+        bufferData ArrayBuffer $= (ptrSize, ptr, StreamDraw)
         clientState VertexArray $= Enabled
         arrayPointer VertexArray $= VertexArrayDescriptor 2 Float 8 ptr
         drawArrays primMode 0 (fromIntegral $ V.length v)
