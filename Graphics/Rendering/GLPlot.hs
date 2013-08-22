@@ -44,6 +44,7 @@ updateCurves plot curves = do
 
 display :: Plot -> IO ()
 display plot = do
+    clearColor $= Color4 1 1 1 1
     clear [ColorBuffer]
     curves <- atomically $ readTVar (plot^.pCurves)
     forM_ curves $ \c->do
