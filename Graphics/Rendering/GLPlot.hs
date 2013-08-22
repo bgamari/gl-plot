@@ -3,7 +3,9 @@
 module Graphics.Rendering.GLPlot ( newPlot
                                  , Plot
                                  , updateCurves
+                                 , setLimits
                                  , Curve(Curve), cColor, cPoints
+                                 , Rect(..)
                                    -- * Convenient re-exports
                                  , mainLoop
                                  ) where
@@ -15,7 +17,7 @@ import Linear
 
 import Foreign.ForeignPtr.Safe
 import qualified Data.Vector.Storable as V
-import Graphics.UI.GLUT as GLUT
+import Graphics.UI.GLUT as GLUT hiding (Rect)
 import Control.Concurrent.STM
 
 maxUpdateRate = 30  -- frames per second
@@ -25,8 +27,11 @@ data Curve = Curve { _cColor   :: !(Color4 GLfloat)
                    }
 makeLenses ''Curve
 
+data Rect a = Rect (V2 a) (V2 a)           
+
 data Plot = Plot { _pWindow       :: !Window
                  , _pCurves       :: !(TVar [Curve])
+                 , _pLimits       :: !(TVar (Rect GLdouble))
                  , _pNeedsRedraw  :: !(TVar Bool)
                  , _pTimerRunning :: !(TVar Bool)
                  }
@@ -40,10 +45,14 @@ newPlot title = do
     curves <- newTVarIO []
     needsRedraw <- newTVarIO False
     timerRunning <- newTVarIO False
-    let plot = Plot window curves needsRedraw timerRunning
+    limits <- newTVarIO $ Rect (V2 0 0) (V2 1 1)
+    let plot = Plot window curves limits needsRedraw timerRunning
     displayCallback $= display plot
     return plot
 
+setLimits :: Plot -> Rect GLdouble -> IO ()
+setLimits plot = scheduleUpdate plot . writeTVar (plot ^. pLimits)
+          
 startTimer :: Plot -> IO ()
 startTimer plot = do
     running <- atomically $ swapTVar (plot ^. pTimerRunning) True
@@ -69,6 +78,10 @@ display :: Plot -> IO ()
 display plot = do
     clearColor $= Color4 1 1 1 1
     clear [ColorBuffer]
+    Rect a b <- atomically $ readTVar (plot ^. pLimits)
+    matrixMode $= Projection
+    loadIdentity
+    ortho2D (a^._x) (b^._x) (a^._y) (b^._y)
     curves <- atomically $ readTVar (plot^.pCurves)
     forM_ curves $ \c->do
         currentColor $= c^.cColor
