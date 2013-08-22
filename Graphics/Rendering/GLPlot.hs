@@ -56,8 +56,11 @@ startTimer plot = do
                   else atomically $ writeTVar (plot ^. pTimerRunning) False
 
 updateCurves :: Plot -> [Curve] -> IO ()
-updateCurves plot curves = do
-    timerRunning <- atomically $ do writeTVar (plot ^. pCurves) curves
+updateCurves plot = scheduleUpdate plot . writeTVar (plot ^. pCurves)
+    
+scheduleUpdate :: Plot -> STM () -> IO ()
+scheduleUpdate plot update = do
+    timerRunning <- atomically $ do update
                                     writeTVar (plot ^. pNeedsRedraw) True
                                     readTVar (plot ^. pTimerRunning)
     when (not timerRunning) $ startTimer plot >> postRedisplay (Just $ plot ^. pWindow)
