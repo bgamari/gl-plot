@@ -34,7 +34,14 @@ newPlot title = do
     needsRedraw <- newTVarIO False
     timerRunning <- newTVarIO False
     limits <- newTVarIO $ Rect (V2 0 0) (V2 1 1)
-    let plot = Plot window curves limits needsRedraw timerRunning
+    (pointBuffer:_) <- genObjectNames 1
+    let plot = Plot { _pWindow       = window
+                    , _pPointBuffer  = pointBuffer
+                    , _pCurves       = curves
+                    , _pLimits       = limits
+                    , _pNeedsRedraw  = needsRedraw
+                    , _pTimerRunning = timerRunning
+                    }
     displayCallback $= display plot
     return plot
 
@@ -73,18 +80,18 @@ display plot = do
     curves <- atomically $ readTVar (plot^.pCurves)
     forM_ curves $ \c->do
         currentColor $= c^.cColor
-        drawVector (c^.cStyle) (c^.cPoints)
+        drawVector plot (c^.cStyle) (c^.cPoints)
     flush
 
-drawVector :: Style -> V.Vector (V2 GLfloat) -> IO ()
-drawVector style v =
+drawVector :: Plot -> Style -> V.Vector (V2 GLfloat) -> IO ()
+drawVector plot style v =
     let (fptr, offset, length) = V.unsafeToForeignPtr v
         ptrSize = toEnum $ 4 * 2 * V.length v
         primMode = case style of
                 Lines    -> PrimitiveMode.LineStrip
                 Points   -> PrimitiveMode.Points
+        array = plot ^. pPointBuffer
     in withForeignPtr fptr $ \ptr->do
-        (array:_) <- genObjectNames 1
         bindBuffer ElementArrayBuffer $= Just array
         bufferData ArrayBuffer $= (ptrSize, ptr, StaticDraw)
         clientState VertexArray $= Enabled
