@@ -13,6 +13,7 @@ data Style = Lines | Points
 data Curve = Curve { _cColor   :: !(Color4 GLfloat)
                    , _cPoints  :: !(V.Vector (V2 GLfloat))
                    , _cStyle   :: !Style
+                   , _cName    :: !(Maybe String)
                    }
 makeLenses ''Curve
 
@@ -20,6 +21,7 @@ defaultCurve :: Curve
 defaultCurve = Curve { _cColor  = Color4 0 0 0 0
                      , _cPoints = V.empty
                      , _cStyle  = Points
+                     , _cName   = Nothing
                      }
 
 data Rect a = Rect (V2 a) (V2 a)
@@ -29,5 +31,6 @@ data Plot = Plot { _pWindow       :: !Window
                  , _pLimits       :: !(TVar (Rect GLdouble))
                  , _pNeedsRedraw  :: !(TVar Bool)
                  , _pTimerRunning :: !(TVar Bool)
+                 , _pLegendCache  :: !(TVar CachedLegend)
                  }
 makeLenses ''Plot
