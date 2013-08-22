@@ -7,6 +7,7 @@ import Linear
 main = do
     GLUT.getArgsAndInitialize
     plot <- newPlot "Hello World!"
+    setLimits plot $ Rect (V2 0 0) (V2 2 3)
     let update t = do
         updateCurves plot [ Curve (Color4 0 0 0 0) (plotData t)
                           , Curve (Color4 1 0 0 0) (V.map (+0.1) $ plotData t)
