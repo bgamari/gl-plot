@@ -14,9 +14,9 @@ cabal-version:       >=1.8
 
 library
   exposed-modules:     Graphics.Rendering.GLPlot
-  build-depends:       base ==4.6.*, vector ==0.10.*, GLUT ==2.4.*, linear ==1.1.*, lens ==3.10.*, stm ==2.4.*
+  build-depends:       base ==4.6.*, vector ==0.10.*, OpenGL, GLUT ==2.4.*, linear ==1.1.*, lens ==3.10.*, stm ==2.4.*
 
 executable glplot-test
   main-is:             Test.hs
   ghc-options:         -threaded
-  build-depends:       base ==4.6.*, vector ==0.10.*, GLUT ==2.4.*, linear ==1.1.*, lens ==3.10.*, stm ==2.4.*
+  build-depends:       base ==4.6.*, vector ==0.10.*, OpenGL, GLUT ==2.4.*, linear ==1.1.*, lens ==3.10.*, stm ==2.4.*

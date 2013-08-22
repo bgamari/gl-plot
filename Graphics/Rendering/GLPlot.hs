@@ -4,7 +4,9 @@ module Graphics.Rendering.GLPlot ( newPlot
                                  , Plot
                                  , updateCurves
                                  , setLimits
-                                 , Curve(Curve), cColor, cPoints
+                                 , Style(..)
+                                 , Curve(Curve), cColor, cPoints, cStyle
+                                 , defaultCurve
                                  , Rect(..)
                                    -- * Convenient re-exports
                                  , mainLoop
@@ -17,17 +19,27 @@ import Linear
 
 import Foreign.ForeignPtr.Safe
 import qualified Data.Vector.Storable as V
-import Graphics.UI.GLUT as GLUT hiding (Rect)
+import Graphics.UI.GLUT as GLUT hiding (Rect, Points, Lines)
+import qualified Graphics.Rendering.OpenGL.GL.PrimitiveMode as PrimitiveMode
 import Control.Concurrent.STM
 
 maxUpdateRate = 30  -- frames per second
-       
+
+data Style = Lines | Points
+
 data Curve = Curve { _cColor   :: !(Color4 GLfloat)
                    , _cPoints  :: !(V.Vector (V2 GLfloat))
+                   , _cStyle   :: !Style
                    }
 makeLenses ''Curve
 
-data Rect a = Rect (V2 a) (V2 a)           
+defaultCurve :: Curve
+defaultCurve = Curve { _cColor  = Color4 0 0 0 0
+                     , _cPoints = V.empty
+                     , _cStyle  = Points
+                     }
+
+data Rect a = Rect (V2 a) (V2 a)
 
 data Plot = Plot { _pWindow       :: !Window
                  , _pCurves       :: !(TVar [Curve])
@@ -52,7 +64,7 @@ newPlot title = do
 
 setLimits :: Plot -> Rect GLdouble -> IO ()
 setLimits plot = scheduleUpdate plot . writeTVar (plot ^. pLimits)
-          
+
 startTimer :: Plot -> IO ()
 startTimer plot = do
     running <- atomically $ swapTVar (plot ^. pTimerRunning) True
@@ -66,14 +78,14 @@ startTimer plot = do
 
 updateCurves :: Plot -> [Curve] -> IO ()
 updateCurves plot = scheduleUpdate plot . writeTVar (plot ^. pCurves)
-    
+
 scheduleUpdate :: Plot -> STM () -> IO ()
 scheduleUpdate plot update = do
     timerRunning <- atomically $ do update
                                     writeTVar (plot ^. pNeedsRedraw) True
                                     readTVar (plot ^. pTimerRunning)
     when (not timerRunning) $ startTimer plot >> postRedisplay (Just $ plot ^. pWindow)
-    
+
 display :: Plot -> IO ()
 display plot = do
     clearColor $= Color4 1 1 1 1
@@ -85,21 +97,21 @@ display plot = do
     curves <- atomically $ readTVar (plot^.pCurves)
     forM_ curves $ \c->do
         currentColor $= c^.cColor
-        drawVector $ c^.cPoints
+        drawVector (c^.cStyle) (c^.cPoints)
     flush
 
-drawVector' :: V.Vector (V2 GLfloat) -> IO ()
-drawVector' = renderPrimitive Points . V.mapM_ (\(V2 x y)->vertex $ Vertex2 x y)
-
-drawVector :: V.Vector (V2 GLfloat) -> IO ()
-drawVector v =
+drawVector :: Style -> V.Vector (V2 GLfloat) -> IO ()
+drawVector style v =
     let (fptr, offset, length) = V.unsafeToForeignPtr v
         ptrSize = toEnum $ 4 * 2 * V.length v
+        primMode = case style of
+                Lines    -> PrimitiveMode.LineStrip
+                Points   -> PrimitiveMode.Points
     in withForeignPtr fptr $ \ptr->do
         (array:_) <- genObjectNames 1
         bindBuffer ElementArrayBuffer $= Just array
         bufferData ArrayBuffer $= (ptrSize, ptr, StaticDraw)
         clientState VertexArray $= Enabled
         arrayPointer VertexArray $= VertexArrayDescriptor 2 Float 8 ptr
-        drawArrays Points 0 (fromIntegral $ V.length v)
+        drawArrays primMode 0 (fromIntegral $ V.length v)
         bindBuffer ArrayBuffer $= Nothing
