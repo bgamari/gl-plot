@@ -3,6 +3,7 @@ import qualified Data.Vector.Storable as V
 import qualified Graphics.UI.GLUT as GLUT
 import Graphics.UI.GLUT (GLfloat, Color4(..))
 import Graphics.Rendering.GLPlot
+import Control.Lens
 import Linear
 
 main = do
@@ -12,8 +13,10 @@ main = do
     let update t = do
         updateCurves plot $
             let d = plotData t
-            in [ Curve (Color4 0 0 0 0) d Lines
-               , Curve (Color4 1 0 0 0) (V.map (+0.1) d) Points
+            in [   cPoints .~ d
+                 $ cColor  .~ (Color4 0.8 0.6 0.4 0)
+                 $ cStyle  .~ Lines
+                 $ defaultCurve
                ]
         threadDelay 30000
         update $ t + 1e-5
