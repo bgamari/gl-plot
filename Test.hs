@@ -8,9 +8,9 @@ import Control.Lens
 import Linear
 
 main = do
+    GLFW.setErrorCallback $ Just $ \err s->do error s
     result <- GLFW.init
     when (not result) $ error "Failed to initialize GLFW"
-    GLFW.setErrorCallback $ Just $ \err s->do error s
 
     plot <- newPlot "Hello World!"
     setLimits plot $ Rect (V2 (-2) (-2)) (V2 2 2)

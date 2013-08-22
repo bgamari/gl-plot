@@ -36,9 +36,13 @@ newPlot title = do
     window <- fromMaybe (error "GLPlot: Failed to create window")
               `liftM` GLFW.createWindow 400 300 title Nothing Nothing
     GLFW.makeContextCurrent $ Just window
+    setFramebufferSizeCallback window $ Just $ \_ w h->do
+        print (w,h)
+        viewport $= (Position 0 0, Size (fromIntegral w) (fromIntegral h))
+    viewport $= (Position 0 0, Size 400 300)
+
     curves <- newTVarIO []
     needsRedraw <- newTVarIO False
-    timerRunning <- newTVarIO False
     limits <- newTVarIO $ Rect (V2 0 0) (V2 1 1)
     (pointBuffer:_) <- genObjectNames 1
     let plot = Plot { _pWindow       = window
@@ -46,41 +50,30 @@ newPlot title = do
                     , _pCurves       = curves
                     , _pLimits       = limits
                     , _pNeedsRedraw  = needsRedraw
-                    , _pTimerRunning = timerRunning
                     }
-    setFramebufferSizeCallback window $ Just $ \_ w h->do
-        viewport $= (Position 0 0, Size (fromIntegral w) (fromIntegral h))
+    display plot
     return plot
 
 mainLoop :: Plot -> IO ()
 mainLoop plot = do
-    GLFW.waitEvents
+    GLFW.pollEvents
+    threadDelay 30000
+    redraw <- atomically $ readTVar (plot ^. pNeedsRedraw)
+    when redraw $ display plot
     close <- windowShouldClose (plot ^. pWindow)
+    finish
+    GLFW.swapBuffers (plot ^. pWindow)
     when (not close) $ mainLoop plot
-    
+
 setLimits :: Plot -> Rect GLdouble -> IO ()
 setLimits plot = scheduleUpdate plot . writeTVar (plot ^. pLimits)
-
-startTimer :: Plot -> IO ()
-startTimer plot = do
-    running <- atomically $ swapTVar (plot ^. pTimerRunning) True
-    when (not running) $ void $ forkIO worker
-  where worker = do
-            threadDelay (1000000 `div` maxUpdateRate)
-            needed <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
-            if needed
-                then display plot >> worker
-                else atomically $ writeTVar (plot ^. pTimerRunning) False
 
 updateCurves :: Plot -> [Curve] -> IO ()
 updateCurves plot = scheduleUpdate plot . writeTVar (plot ^. pCurves)
 
 scheduleUpdate :: Plot -> STM () -> IO ()
-scheduleUpdate plot update = do
-    timerRunning <- atomically $ do update
-                                    writeTVar (plot ^. pNeedsRedraw) True
-                                    readTVar (plot ^. pTimerRunning)
-    when (not timerRunning) $ startTimer plot
+scheduleUpdate plot update =
+    atomically $ update >> writeTVar (plot ^. pNeedsRedraw) True
 
 display :: Plot -> IO ()
 display plot = do
@@ -94,9 +87,6 @@ display plot = do
     forM_ curves $ \c->do
         currentColor $= c^.cColor
         drawVector plot (c^.cStyle) (c^.cPoints)
-    finish
-    GLFW.swapBuffers (plot ^. pWindow)
-    putStrLn "hi"
 
 drawVector :: Plot -> Style -> V.Vector (V2 GLfloat) -> IO ()
 drawVector plot style v =
