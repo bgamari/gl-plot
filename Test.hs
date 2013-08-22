@@ -10,15 +10,17 @@ main = do
     plot <- newPlot "Hello World!"
     setLimits plot $ Rect (V2 (-2) (-2)) (V2 2 2)
     let update t = do
-        updateCurves plot [ Curve (Color4 0 0 0 0) (plotData t) Lines
-                          , Curve (Color4 1 0 0 0) (V.map (+0.1) $ plotData t) Points
-                          ]
+        updateCurves plot $
+            let d = plotData t
+            in [ Curve (Color4 0 0 0 0) d Lines
+               , Curve (Color4 1 0 0 0) (V.map (+0.1) d) Points
+               ]
         threadDelay 30000
-        update $ t + 1
-    forkIO $ update 0
+        update $ t + 1e-5
+    forkIO $ update 2
     GLUT.mainLoop
 
 plotData :: GLfloat -> V.Vector (V2 GLfloat)
 plotData t =
-    V.map (\t->V2 (cos t) (sin $ sin $ t*sqrt 2))
-          (V.enumFromThenTo t (t+0.01) (t+200))
+    V.map (\i->V2 (cos i) (sin $ sin $ i * sqrt t)) $
+          (V.enumFromThenTo 0 0.01 200)
