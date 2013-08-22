@@ -48,7 +48,7 @@ display plot = do
     clear [ColorBuffer]
     curves <- atomically $ readTVar (plot^.pCurves)
     forM_ curves $ \c->do
-        --currentColor $=
+        currentColor $= c^.cColor
         drawVector $ c^.cPoints
     flush
 
