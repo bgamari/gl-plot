@@ -1,33 +1,57 @@
-import Data.IORef
-import Foreign.ForeignPtr.Safe
-import qualified Data.Vector.Storable as V
+{-# LANGUAGE TemplateHaskell #-}
+
+module GLPlot ( newPlot
+              , Plot
+              , updateCurves
+              , Curve(Curve), cColor, cPoints
+                -- * Convenient re-exports
+              , mainLoop
+              ) where
+
+import Data.Foldable
+import Control.Lens
 import Linear
 
+import Foreign.ForeignPtr.Safe
+import qualified Data.Vector.Storable as V
 import Graphics.UI.GLUT as GLUT
-import Shaders
+import Control.Concurrent.STM
 
-main = do
-    GLUT.getArgsAndInitialize
-    window <- GLUT.createWindow "Hello World!"
-    tRef <- newIORef 0
-    displayCallback $= display tRef
-    
-    let update = do modifyIORef' tRef (+0.1)
-                    postRedisplay (Just window)
-                    addTimerCallback 30 update
-    update
-    GLUT.mainLoop
-    
-plotData :: GLfloat -> V.Vector (V2 GLfloat)
-plotData t = V.map (\t->V2 (cos t) (sin t)) (V.enumFromThenTo t (t+0.02) (t+pi))
+data Curve = Curve { _cColor   :: !(Color4 GLfloat)
+                   , _cPoints  :: !(V.Vector (V2 GLfloat))
+                   }
+makeLenses ''Curve
 
-display :: IORef GLfloat -> IO ()
-display tRef = do
-    clear [ ColorBuffer]
-    --renderPrimitive Points $ V.mapM_ (\(V2 x y)->vertex $ Vertex2 x y) plotData
-    t <- readIORef tRef
-    drawVector $ plotData t
+data Plot = Plot { _pWindow    :: !Window
+                 , _pCurves   :: !(TVar [Curve])
+                 }
+makeLenses ''Plot
+
+-- | GLUT must be initialized before this is called
+newPlot :: String -> IO Plot
+newPlot title = do
+    window <- GLUT.createWindow title
+    curves <- newTVarIO []
+    let plot = Plot window curves
+    displayCallback $= display plot
+    return plot
+
+updateCurves :: Plot -> [Curve] -> IO ()
+updateCurves plot curves = do
+    atomically $ writeTVar (plot^.pCurves) curves
+    postRedisplay (Just $ plot ^. pWindow)
+
+display :: Plot -> IO ()
+display plot = do
+    clear [ColorBuffer]
+    curves <- atomically $ readTVar (plot^.pCurves)
+    forM_ curves $ \c->do
+        --currentColor $=
+        drawVector $ c^.cPoints
     flush
+
+drawVector' :: V.Vector (V2 GLfloat) -> IO ()
+drawVector' = renderPrimitive Points . V.mapM_ (\(V2 x y)->vertex $ Vertex2 x y)
 
 drawVector :: V.Vector (V2 GLfloat) -> IO ()
 drawVector v =
@@ -41,18 +65,3 @@ drawVector v =
         arrayPointer VertexArray $= VertexArrayDescriptor 2 Float 8 ptr
         drawArrays Points 0 (fromIntegral $ V.length v)
         bindBuffer ArrayBuffer $= Nothing
-
-    
-drawVector' :: V.Vector (V2 GLfloat) -> IO ()
-drawVector' v = do
-    let (fptr, offset, length) = V.unsafeToForeignPtr v
-        ptrSize = toEnum $ 4 * 2 * V.length v
-    withForeignPtr fptr $ \ptr->do
-    (array:_) <- genObjectNames 1
-    bindBuffer ElementArrayBuffer $= Just array
-    bufferData ArrayBuffer $= (ptrSize, ptr, StaticDraw)
-
-    --program <- loadProgram "vertex.glsl" "fragment.glsl"
-    --coordLoc <- get $ uniformLocation program "coord"
-    --colorLoc <- get $ uniformLocation program "color"
-    --vertexAttribPointer coordLoc $= (ToFloat, VertexArrayDescriptor 2 Float 8 ptr)
