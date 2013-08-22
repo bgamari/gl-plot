@@ -3,7 +3,7 @@ module Graphics.Rendering.GLPlot ( newPlot
                                  , updateCurves
                                  , setLimits
                                  , Style(..)
-                                 , Curve(Curve), cColor, cPoints, cStyle
+                                 , Curve, cColor, cPoints, cStyle
                                  , defaultCurve
                                  , Rect(..)
                                    -- * Convenient re-exports
