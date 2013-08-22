@@ -1,12 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module GLPlot ( newPlot
-              , Plot
-              , updateCurves
-              , Curve(Curve), cColor, cPoints
-                -- * Convenient re-exports
-              , mainLoop
-              ) where
+module Graphics.Rendering.GLPlot ( newPlot
+                                 , Plot
+                                 , updateCurves
+                                 , Curve(Curve), cColor, cPoints
+                                   -- * Convenient re-exports
+                                 , mainLoop
+                                 ) where
 
 import Data.Foldable
 import Control.Lens
@@ -27,7 +27,8 @@ data Plot = Plot { _pWindow    :: !Window
                  }
 makeLenses ''Plot
 
--- | GLUT must be initialized before this is called
+-- | GLUT must be initialized before this is called.
+-- Be sure to invoke the GLUT @mainLoop@.
 newPlot :: String -> IO Plot
 newPlot title = do
     window <- GLUT.createWindow title

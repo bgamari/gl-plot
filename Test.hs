@@ -1,7 +1,7 @@
 import Control.Concurrent (threadDelay, forkIO)
 import qualified Data.Vector.Storable as V
 import Graphics.UI.GLUT as GLUT
-import GLPlot
+import Graphics.Rendering.GLPlot
 import Linear
 
 main = do
