@@ -56,7 +56,7 @@ newPlot title = do
 mainLoop :: Plot -> IO ()
 mainLoop plot = do
     GLFW.pollEvents
-    threadDelay 30000
+    threadDelay $ 1000000 `div` maxUpdateRate
     redraw <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
     when redraw $ display plot
     close <- windowShouldClose (plot ^. pWindow)
