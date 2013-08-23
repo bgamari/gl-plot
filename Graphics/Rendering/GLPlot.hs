@@ -59,9 +59,9 @@ mainLoop plot = do
     threadDelay $ 1000000 `div` maxUpdateRate
     redraw <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
     when redraw $ display plot
-    close <- windowShouldClose (plot ^. pWindow)
     finish
     GLFW.swapBuffers (plot ^. pWindow)
+    close <- windowShouldClose (plot ^. pWindow)
     when (not close) $ mainLoop plot
 
 setLimits :: Plot -> Rect GLdouble -> IO ()
