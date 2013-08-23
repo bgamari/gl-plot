@@ -25,7 +25,7 @@ main = do
         threadDelay 30000
         update $ t + 1e-5
     forkIO $ update 2
-    mainLoop plot
+    mainLoop [plot]
 
 plotData :: GLfloat -> V.Vector (V2 GLfloat)
 plotData t =

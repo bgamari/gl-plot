@@ -12,8 +12,8 @@ module Graphics.Rendering.GLPlot ( newPlot
 
 import Data.Foldable
 import Control.Lens
-import Data.Maybe (fromMaybe)
-import Control.Monad (when, forever, void, liftM)
+import Data.Maybe (fromMaybe, catMaybes)
+import Control.Monad (when, forever, void, liftM, forM)
 import Linear
 
 import Foreign.ForeignPtr.Safe
@@ -53,16 +53,21 @@ newPlot title = do
     display plot
     return plot
 
-mainLoop :: Plot -> IO ()
-mainLoop plot = do
+mainLoop :: [Plot] -> IO ()
+mainLoop [] = return ()
+mainLoop plots = do
     GLFW.pollEvents
     threadDelay $ 1000000 `div` maxUpdateRate
-    redraw <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
-    when redraw $ display plot
-    finish
-    GLFW.swapBuffers (plot ^. pWindow)
-    close <- windowShouldClose (plot ^. pWindow)
-    when (not close) $ mainLoop plot
+    plots' <- forM plots $ \plot->do
+        let window = (plot ^. pWindow)
+        redraw <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
+        when redraw $ do GLFW.makeContextCurrent $ Just window
+                         display plot
+        finish
+        GLFW.swapBuffers window
+        close <- windowShouldClose window
+        return $ if close then Nothing else Just plot
+    mainLoop $ catMaybes plots'
 
 setLimits :: Plot -> Rect GLdouble -> IO ()
 setLimits plot = scheduleUpdate plot . writeTVar (plot ^. pLimits)
