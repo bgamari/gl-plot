@@ -58,7 +58,7 @@ mainLoop :: Plot -> IO ()
 mainLoop plot = do
     GLFW.pollEvents
     threadDelay 30000
-    redraw <- atomically $ readTVar (plot ^. pNeedsRedraw)
+    redraw <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
     when redraw $ display plot
     close <- windowShouldClose (plot ^. pWindow)
     finish
