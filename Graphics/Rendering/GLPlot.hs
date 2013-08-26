@@ -37,6 +37,7 @@ newPlot title = do
               `liftM` GLFW.createWindow 400 300 title Nothing Nothing
     GLFW.makeContextCurrent $ Just window
     setFramebufferSizeCallback window $ Just $ \_ w h->do
+        GLFW.makeContextCurrent $ Just window
         viewport $= (Position 0 0, Size (fromIntegral w) (fromIntegral h))
     viewport $= (Position 0 0, Size 400 300)
 
