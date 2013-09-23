@@ -19,9 +19,9 @@ import Linear
 import Foreign.ForeignPtr.Safe
 import qualified Data.Vector.Storable as V
 import Graphics.UI.GLFW as GLFW
-import Graphics.Rendering.OpenGL.GL as GL hiding (Rect, Points, Lines)
+import           Graphics.Rendering.OpenGL.GL hiding (Points, Lines, Rect(..))
+import qualified Graphics.Rendering.OpenGL.GL as GL
 import Graphics.Rendering.OpenGL.GLU as GLU
-import qualified Graphics.Rendering.OpenGL.GL.PrimitiveMode as PrimitiveMode
 import Control.Concurrent
 import Control.Concurrent.STM
 
@@ -98,8 +98,8 @@ drawVector plot style v =
     let (fptr, offset, length) = V.unsafeToForeignPtr v
         ptrSize = toEnum $ 4 * 2 * V.length v
         primMode = case style of
-                Lines    -> PrimitiveMode.LineStrip
-                Points   -> PrimitiveMode.Points
+                Lines    -> GL.LineStrip
+                Points   -> GL.Points
         array = plot ^. pPointBuffer
     in withForeignPtr fptr $ \ptr->do
         bindBuffer ElementArrayBuffer $= Just array
