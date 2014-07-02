@@ -64,8 +64,8 @@ mainLoop plots = do
         redraw <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
         when redraw $ do GLFW.makeContextCurrent $ Just window
                          display plot
-        finish
-        GLFW.swapBuffers window
+                         finish
+                         GLFW.swapBuffers window
         close <- windowShouldClose window
         return $ if close then Nothing else Just plot
     mainLoop $ catMaybes plots'
