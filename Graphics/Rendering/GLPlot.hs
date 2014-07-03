@@ -26,6 +26,7 @@ import Control.Concurrent
 import Control.Concurrent.STM
 
 import Graphics.Rendering.GLPlot.Types
+import Graphics.Rendering.GLPlot.Text
 
 maxUpdateRate = 30  -- frames per second
 
@@ -44,7 +45,7 @@ newPlot title = do
     curves <- newTVarIO []
     needsRedraw <- newTVarIO False
     limits <- newTVarIO $ Rect (V2 0 0) (V2 1 1)
-    (pointBuffer:_) <- genObjectNames 1
+    pointBuffer <- genObjectName
     let plot = Plot { _pWindow       = window
                     , _pPointBuffer  = pointBuffer
                     , _pCurves       = curves
@@ -59,11 +60,13 @@ mainLoop [] = return ()
 mainLoop plots = do
     GLFW.pollEvents
     threadDelay $ 1000000 `div` maxUpdateRate
+    surf <- renderText "hello"
     plots' <- forM plots $ \plot->do
         let window = (plot ^. pWindow)
         redraw <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
         when redraw $ do GLFW.makeContextCurrent $ Just window
                          display plot
+                         withBoundSurface surf $ drawTexture (-1,-0)
                          finish
                          GLFW.swapBuffers window
         close <- windowShouldClose window
@@ -82,10 +85,11 @@ scheduleUpdate plot update =
 
 display :: Plot -> IO ()
 display plot = do
+    depthFunc $= Nothing
     clearColor $= Color4 1 1 1 1
     clear [ColorBuffer]
     Rect a b <- atomically $ readTVar (plot ^. pLimits)
-    matrixMode $= Projection
+    matrixMode $= Modelview 0
     loadIdentity
     GLU.ortho2D (a^._x) (b^._x) (a^._y) (b^._y)
     curves <- atomically $ readTVar (plot^.pCurves)

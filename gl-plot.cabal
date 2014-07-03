@@ -21,7 +21,12 @@ library
                        GLFW-b,
                        linear >=1.1,
                        lens >=3.9,
-                       stm >=2.4
+                       linear,
+                       linear-opengl,
+                       stm >=2.4,
+                       cairo,
+                       pango,
+                       bytestring
 
 executable glplot-test
   main-is:             Test.hs
@@ -32,4 +37,9 @@ executable glplot-test
                        GLFW-b,
                        linear >=1.1,
                        lens >=3.9,
-                       stm >=2.4
+                       linear,
+                       linear-opengl,
+                       stm >=2.4,
+                       cairo,
+                       pango,
+                       bytestring
