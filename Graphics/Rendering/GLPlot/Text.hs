@@ -1,4 +1,8 @@
-module Graphics.Rendering.GLPlot.Text where
+module Graphics.Rendering.GLPlot.Text
+  ( renderText
+  , drawTexture
+  , renderToTexture
+  ) where
 
 import qualified Graphics.Rendering.Cairo as C
 import           Graphics.Rendering.Cairo (Surface)
@@ -10,7 +14,7 @@ import Control.Lens
 import Linear
 import Linear.OpenGL
 
-renderText :: String -> IO Surface
+renderText :: String -> IO TextureObject
 renderText text = do
     font <- P.fontDescriptionNew
     P.fontDescriptionSetSize font 24
@@ -20,32 +24,29 @@ renderText text = do
     P.layoutSetFontDescription layout (Just font)
     (_, P.Rectangle _ _ w h) <- P.layoutGetPixelExtents layout
 
-    surf <- C.createImageSurface C.FormatARGB32 w h
-    C.renderWith surf $ do
+    renderToTexture w h $ do
         C.setSourceRGBA 0 0 0 0
         C.paint
         C.setSourceRGBA 1 1 1 1
         P.showLayout layout
-    return surf
 
-withBoundSurface :: Surface -> (TextureSize2D -> TextureObject -> IO a) -> IO a
-withBoundSurface surf action = do
-    w <- C.imageSurfaceGetWidth surf
-    h <- C.imageSurfaceGetHeight surf
-    d <- C.imageSurfaceGetData surf
+renderToTexture :: Int -> Int -> C.Render a -> IO TextureObject
+renderToTexture w h render = do
+    surf <- C.createImageSurface C.FormatARGB32 w h
+    C.renderWith surf render
     texture <- genObjectName
     textureBinding Texture2D $= Just texture
+    d <- C.imageSurfaceGetData surf
     BSU.unsafeUseAsCString d $ \ptr->do
       let size = TextureSize2D (fromIntegral w) (fromIntegral h)
           pixelData = PixelData BGRA UnsignedByte ptr
       texImage2D Texture2D NoProxy 0 RGBA' size 0 pixelData
-      ret <- action size texture
-      deleteObjectName texture -- FIXME
-      return ret
+    return texture
 
-drawTexture :: (GLdouble, GLdouble) -> TextureSize2D -> TextureObject -> IO ()
-drawTexture (x,y) size t = do
-    let TextureSize2D w h = size
+drawTexture :: (GLdouble, GLdouble) -> TextureObject -> IO ()
+drawTexture (x,y) t = do
+    textureBinding Texture2D $= Just t
+    TextureSize2D w h <- get $ textureSize2D Texture2D 0
     blend $= Enabled
     blendFunc $= (SrcColor, OneMinusSrcAlpha)
     currentColor $= Color4 0 0 0 1

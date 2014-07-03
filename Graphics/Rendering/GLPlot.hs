@@ -66,7 +66,7 @@ mainLoop plots = do
         redraw <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
         when redraw $ do GLFW.makeContextCurrent $ Just window
                          display plot
-                         withBoundSurface surf $ drawTexture (-1,-0)
+                         drawTexture (-1,-0) surf
                          finish
                          GLFW.swapBuffers window
         close <- windowShouldClose window
