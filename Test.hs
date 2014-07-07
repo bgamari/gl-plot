@@ -7,6 +7,8 @@ import Graphics.Rendering.GLPlot
 import Control.Lens
 import Linear
 
+fpsLimit = 60
+
 main = do
     GLFW.setErrorCallback $ Just $ \err s->do error s
     result <- GLFW.init
@@ -22,7 +24,7 @@ main = do
                  $ cStyle  .~ Lines
                  $ defaultCurve
                ]
-        threadDelay 30000
+        threadDelay $ 1000000 `div` fpsLimit
         update $ t + 1e-5
     forkIO $ update 2
     mainLoop [plot]
