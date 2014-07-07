@@ -14,7 +14,8 @@ cabal-version:       >=1.8
 
 library
   exposed-modules:     Graphics.Rendering.GLPlot
-  other-modules:       Graphics.Rendering.GLPlot.Types
+  other-modules:       Graphics.Rendering.GLPlot.Types,
+                       Graphics.Rendering.GLPlot.Text
   build-depends:       base >=4.6,
                        vector >=0.10,
                        OpenGL,
