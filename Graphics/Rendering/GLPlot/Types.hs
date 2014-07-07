@@ -32,5 +32,6 @@ data Plot = Plot { _pWindow       :: !Window
                  , _pCurves       :: !(TVar [Curve])
                  , _pLimits       :: !(TVar (Rect GLdouble))
                  , _pNeedsRedraw  :: !(TVar Bool)
+                 , _pGetLegend    :: !(TVar (IO (Maybe TextureObject)))
                  }
 makeLenses ''Plot

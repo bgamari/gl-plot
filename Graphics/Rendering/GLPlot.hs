@@ -6,6 +6,8 @@ module Graphics.Rendering.GLPlot ( newPlot
                                  , Curve, cColor, cPoints, cStyle
                                  , defaultCurve
                                  , Rect(..)
+                                   -- * Legend
+                                 , setLegend
                                    -- * A simple main loop
                                  , mainLoop
                                  ) where
@@ -47,11 +49,13 @@ newPlot title = do
     needsRedraw <- newTVarIO False
     limits <- newTVarIO $ Rect (V2 0 0) (V2 1 1)
     pointBuffer <- genObjectName
+    getLegend <- newTVarIO $ return Nothing
     let plot = Plot { _pWindow       = window
                     , _pPointBuffer  = pointBuffer
                     , _pCurves       = curves
                     , _pLimits       = limits
                     , _pNeedsRedraw  = needsRedraw
+                    , _pGetLegend    = getLegend
                     }
     display plot
     return plot
@@ -61,20 +65,18 @@ mainLoop [] = return ()
 mainLoop plots = do
     GLFW.pollEvents
     threadDelay $ 1000000 `div` maxUpdateRate
-    font <- P.fontDescriptionNew
-    P.fontDescriptionSetSize font 24
-    surf <- renderLegend font [ (Color4 1 0 0 1, "Hello World!")
-                              , (Color4 0 1 0 1, "Hello Again!")
-                              , (Color4 0 0 1 1, "Ho ho ho ho!")
-                              ]
     plots' <- forM plots $ \plot->do
         let window = (plot ^. pWindow)
         redraw <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
-        when redraw $ do GLFW.makeContextCurrent $ Just window
-                         display plot
-                         drawTexture (-1,-0) surf
-                         finish
-                         GLFW.swapBuffers window
+        when redraw $ do
+            GLFW.makeContextCurrent $ Just window
+            display plot
+            legend <- atomically (readTVar (plot ^. pGetLegend)) >>= id
+            case legend of
+              Just texture -> drawTexture (-1,-0) texture
+              Nothing -> return ()
+            finish
+            GLFW.swapBuffers window
         close <- windowShouldClose window
         return $ if close then Nothing else Just plot
     mainLoop $ catMaybes plots'
@@ -118,3 +120,15 @@ drawVector plot style v =
         arrayPointer VertexArray $= VertexArrayDescriptor 2 Float 8 ptr
         drawArrays primMode 0 (fromIntegral $ V.length v)
         bindBuffer ArrayBuffer $= Nothing
+
+setLegend :: Plot -> [(Color4 Double, String)] -> IO ()
+setLegend plot entries = do
+    scheduleUpdate plot $ do
+        writeTVar (plot ^. pGetLegend) getLegend
+  where
+    getLegend = do
+      font <- P.fontDescriptionNew
+      P.fontDescriptionSetSize font 24
+      legend <- renderLegend font entries
+      atomically $ writeTVar (plot ^. pGetLegend) (return $ Just legend)
+      return (Just legend)
