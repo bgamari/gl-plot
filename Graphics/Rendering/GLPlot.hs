@@ -18,10 +18,11 @@ import Linear
 
 import Foreign.ForeignPtr.Safe
 import qualified Data.Vector.Storable as V
-import Graphics.UI.GLFW as GLFW
+import           Graphics.UI.GLFW as GLFW
 import           Graphics.Rendering.OpenGL.GL hiding (Points, Lines, Rect(..))
 import qualified Graphics.Rendering.OpenGL.GL as GL
-import Graphics.Rendering.OpenGL.GLU as GLU
+import           Graphics.Rendering.OpenGL.GLU as GLU
+import qualified Graphics.Rendering.Pango as P
 import Control.Concurrent
 import Control.Concurrent.STM
 
@@ -60,7 +61,12 @@ mainLoop [] = return ()
 mainLoop plots = do
     GLFW.pollEvents
     threadDelay $ 1000000 `div` maxUpdateRate
-    surf <- renderText "hello"
+    font <- P.fontDescriptionNew
+    P.fontDescriptionSetSize font 24
+    surf <- renderLegend font [ (Color4 1 0 0 1, "Hello World!")
+                              , (Color4 0 1 0 1, "Hello Again!")
+                              , (Color4 0 0 1 1, "Ho ho ho ho!")
+                              ]
     plots' <- forM plots $ \plot->do
         let window = (plot ^. pWindow)
         redraw <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
