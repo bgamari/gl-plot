@@ -29,7 +29,6 @@ main = do
     curve2 <- newCurve plot params2
     setPoints curve2 $ plotData 2
 
-    forkIO $ runContext ctx
     forkIO $ forever $ do
         threadDelay 1000000
         getFrameCount plot >>= print

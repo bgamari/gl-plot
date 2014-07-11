@@ -1,7 +1,6 @@
 module Graphics.Rendering.GLPlot ( -- * Main loop context
                                    Context
                                  , newContext
-                                 , runContext
                                    -- * Plots
                                  , Plot
                                  , newPlot
@@ -51,14 +50,12 @@ newContext = do
     when (not result) $ error "Failed to initialize GLFW"
 
     taskQueue <- newTQueueIO
+    forkIO $ forever $ do
+        task <- atomically $ readTQueue taskQueue
+        task
+
     let ctx = Context { _ctxTasks = taskQueue }
     return ctx
-
--- | Call this from the main thread to run the main loop
-runContext :: Context -> IO ()
-runContext ctx = forever $ do
-    task <- atomically $ readTQueue (ctx ^. ctxTasks)
-    task
 
 -- | Schedule a task to be run in the main loop
 scheduleTask :: Context -> IO () -> IO ()
