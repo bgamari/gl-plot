@@ -6,7 +6,12 @@ import Linear
 import Graphics.UI.GLFW as GLFW
 import Graphics.Rendering.OpenGL.GL hiding (Points, Lines, Rect)
 import qualified Data.Vector.Storable as V
+import Control.Concurrent (ThreadId)
 import Control.Concurrent.STM
+
+-- | A main loop context
+data Context = Context { _ctxTasks    :: !(TQueue (IO ()))
+                       }
 
 -- | An action invoked to get the points for a curve.
 -- When this is called, the user has the option to pass
@@ -38,9 +43,11 @@ defaultCurve = CurveParams { _cColor  = Color4 0 0 0 0
 
 data Rect a = Rect (V2 a) (V2 a)
 
-data Plot = Plot { _pWindow       :: !Window
+data Plot = Plot { _pWindow       :: !(TMVar Window)
                  , _pCurves       :: !(TVar [Curve])
                  , _pLimits       :: !(TVar (Rect GLdouble))
-                 , _pNeedsRedraw  :: !(TVar Bool)
+                 , _pMainloop     :: !Context
+                 -- , _pDrawLegend   :: !Bool
+                 , _pLegend       :: !(TVar (Maybe TextureObject))
                  , _pProgram      :: Program
                  }

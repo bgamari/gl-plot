@@ -25,7 +25,7 @@ library
                        GLFW-b,
                        lens >=3.9,
                        linear >=1.1,
-				       linear-opengl,
+                       linear-opengl,
                        stm >=2.4,
                        cairo,
                        pango,

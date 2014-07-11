@@ -1,4 +1,5 @@
-import Control.Monad (when)
+import Control.Monad (when, forever)
+import Control.Concurrent (threadDelay, forkIO)
 import Data.IORef
 import qualified Data.Vector.Storable as V
 import qualified Graphics.UI.GLFW as GLFW
@@ -8,16 +9,13 @@ import Control.Lens
 import Linear
 
 main = do
-    GLFW.setErrorCallback $ Just $ \err s->do error s
-    result <- GLFW.init
-    when (not result) $ error "Failed to initialize GLFW"
-
-    plot <- newPlot "Hello World!"
+    ctx <- newContext
+    plot <- newPlot ctx "Hello World!"
     setLimits plot $ Rect (V2 (-2) (-2)) (V2 2 2)
-    setLegend plot [ (Color4 1 0 0 1, "Hello World!")
-                   , (Color4 0 1 0 1, "Hello Again!")
-                   , (Color4 0 0 1 1, "Ho ho ho ho!")
-                   ]
+    --setLegend plot [ (Color4 1 0 0 1, "Hello World!")
+    --               , (Color4 0 1 0 1, "Hello Again!")
+    --               , (Color4 0 0 1 1, "Ho ho ho ho!")
+    --               ]
     time <- newIORef 2
     let params = cColor  .~ (Color4 0.8 0.6 0.4 0)
                $ cStyle  .~ Lines
@@ -39,7 +37,10 @@ main = do
             then push Nothing
             else push $ Just $ plotData 5
     curve <- newCurve plot params2 (GetPoints update2)
-    mainLoop [plot]
+    forkIO $ runContext ctx
+    forever $ do
+        scheduleRedraw plot
+        threadDelay $ 1000000 `div` 30
 
 plotData :: GLfloat -> V.Vector (V2 GLfloat)
 plotData t =

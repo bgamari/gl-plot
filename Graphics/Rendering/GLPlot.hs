@@ -1,24 +1,27 @@
-module Graphics.Rendering.GLPlot ( newPlot
+module Graphics.Rendering.GLPlot ( -- * Main loop context
+                                   Context
+                                 , newContext
+                                 , runContext
+                                   -- * Plots
                                  , Plot
+                                 , newPlot
                                  , setLimits
+                                 , scheduleRedraw
                                  , Rect(..)
+                                   -- * Curves
                                  , Curve
                                  , newCurve
                                  , GetPoints(..)
                                  , defaultCurve
                                  , CurveParams, cColor, cStyle, cName
                                  , Style(..)
-                                   -- * Legend
-                                 , setLegend
-                                   -- * A simple main loop
-                                 , mainLoop
                                  ) where
 
 import Data.Foldable
-import Control.Lens
 import Data.Maybe (fromMaybe, catMaybes)
 import Control.Monad (when, forever, void, liftM, forM)
 import Control.Monad.Trans.Either
+import Control.Lens hiding (Context)
 import Linear
 
 import Foreign.ForeignPtr.Safe
@@ -39,66 +42,107 @@ import Graphics.Rendering.GLPlot.Text
 
 maxUpdateRate = 30  -- frames per second
 
--- | GLUT must be initialized before this is called.
--- Be sure to invoke the GLUT @mainLoop@.
-newPlot :: String -> IO Plot
-newPlot title = do
+-- | Only one context should be created per process.
+newContext :: IO Context
+newContext = do
+    GLFW.setErrorCallback $ Just $ \err s->fail s
+    result <- GLFW.init
+    when (not result) $ error "Failed to initialize GLFW"
+
+    taskQueue <- newTQueueIO
+    let ctx = Context { _ctxTasks = taskQueue }
+    return ctx
+
+-- | Call this from the main thread to run the main loop
+runContext :: Context -> IO ()
+runContext ctx = forever $ do
+    task <- atomically $ readTQueue (ctx ^. ctxTasks)
+    task
+
+-- | Schedule a task to be run in the main loop
+scheduleTask :: Context -> IO () -> IO ()
+scheduleTask ctx task = atomically $ writeTQueue (ctx ^. ctxTasks) task
+
+-- | Perform the given action with the plot's context active
+withPlotContext :: Plot -> (Window -> IO a) -> IO a
+withPlotContext plot action = do
+    window <- atomically $ takeTMVar $ plot ^. pWindow
+    GLFW.makeContextCurrent (Just window)
+    r <- action window
+    GLFW.makeContextCurrent Nothing
+    atomically $ putTMVar (plot ^. pWindow) window
+    return r
+
+-- | Schedule a task for the given plot
+schedulePlotTask :: Plot -> (Window -> IO ()) -> IO ()
+schedulePlotTask plot action =
+    scheduleTask (plot ^. pMainloop) $ withPlotContext plot action
+
+-- | Schedule a redraw of a plot
+scheduleRedraw :: Plot -> IO ()
+scheduleRedraw plot = schedulePlotTask plot (redrawPlot plot)
+
+redrawPlot :: Plot -> Window -> IO ()
+redrawPlot plot window = do
+    drawPlot plot
+    --case plot ^. pLegend of
+    --    Just texture -> drawTexture (-1,0) texture
+    --    Nothing -> return ()
+    finish
+    GLFW.swapBuffers window
+
+-- | Create a new plot
+newPlot :: Context -> String -> IO Plot
+newPlot mainloop title = do
+    -- we can apparently get away with doing this initialization
+    -- outside of the mainloop
     window <- fromMaybe (error "GLPlot: Failed to create window")
               `liftM` GLFW.createWindow 400 300 title Nothing Nothing
-    GLFW.makeContextCurrent $ Just window
-    setFramebufferSizeCallback window $ Just $ \_ w h->do
-        GLFW.makeContextCurrent $ Just window
-        viewport $= (Position 0 0, Size (fromIntegral w) (fromIntegral h))
-    viewport $= (Position 0 0, Size 400 300)
-
     curves <- newTVarIO []
-    needsRedraw <- newTVarIO False
+    legend <- newTVarIO Nothing
     limits <- newTVarIO $ Rect (V2 0 0) (V2 1 1)
-    program <- either error id `fmap` runEitherT buildProgram
-    let plot = Plot { _pWindow       = window
+
+    GLFW.makeContextCurrent (Just window)
+    let shaderError e = error $ "Failed to build shader program: "++e
+    program <- either shaderError id `fmap` runEitherT buildProgram
+    GLFW.makeContextCurrent Nothing
+
+    windowVar <- newTMVarIO window
+    let plot = Plot { _pWindow       = windowVar
                     , _pCurves       = curves
                     , _pLimits       = limits
-                    , _pNeedsRedraw  = needsRedraw
+                    , _pMainloop     = mainloop
+                    , _pLegend       = legend
                     , _pProgram      = program
                     }
-    display plot
-    return plot
 
-mainLoop :: [Plot] -> IO ()
-mainLoop [] = return ()
-mainLoop plots = do
-    GLFW.pollEvents
-    threadDelay $ 1000000 `div` maxUpdateRate
-    plots' <- forM plots $ \plot->do
-        let window = (plot ^. pWindow)
-        --redraw <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
-        let redraw = True
-        when redraw $ do
-            GLFW.makeContextCurrent $ Just window
-            display plot
-            legend <- atomically (readTVar (plot ^. pGetLegend)) >>= id
-            case legend of
-              Just texture -> drawTexture (-1,0) texture
- 			  Nothing -> return ()
-            finish
-            GLFW.swapBuffers window
-        close <- windowShouldClose window
-        return $ if close then Nothing else Just plot
-    mainLoop $ catMaybes plots'
+    withPlotContext plot $ const $ do
+        viewport $= (Position 0 0, Size 400 300)
+        setFramebufferSizeCallback window $ Just $ \_ w h->do
+            viewport $= (Position 0 0, Size (fromIntegral w) (fromIntegral h))
+            redrawPlot plot window
+
+    -- Ensure we periodically poll GLFW for events
+    forkIO $ forever $ do
+        schedulePlotTask plot $ const $ do
+            close <- windowShouldClose window
+            when close $ destroyWindow window
+            -- TODO: ensure further activity isn't allowed
+            GLFW.pollEvents
+        threadDelay $ 1000000 `div` 10
+
+    scheduleRedraw plot
+    return plot
 
 -- | Set the bounds of the plot area
 setLimits :: Plot -> Rect GLdouble -> IO ()
-setLimits plot = scheduleUpdate plot . writeTVar (plot ^. pLimits)
+setLimits plot limits = do
+    atomically $ writeTVar (plot ^. pLimits) limits
+    scheduleRedraw plot
 
-updateCurves :: Plot -> [Curve] -> IO ()
-updateCurves plot = scheduleUpdate plot . writeTVar (plot ^. pCurves)
-
-scheduleUpdate :: Plot -> STM () -> IO ()
-scheduleUpdate plot update =
-    atomically $ update >> writeTVar (plot ^. pNeedsRedraw) True
-
+-- | Create a new curve
 newCurve :: Plot -> CurveParams -> GetPoints -> IO Curve
-newCurve plot params getPoints = do
+newCurve plot params getPoints = withPlotContext plot $ const $ do
     buffer <- genObjectName
     points <- newTVarIO 0
     let s = Curve { _cParams = params
@@ -110,8 +154,25 @@ newCurve plot params getPoints = do
     atomically $ modifyTVar (plot ^. pCurves) (s:)
     return s
 
-setPoints :: Curve -> V.Vector (V2 GLfloat) -> IO ()
-setPoints curve pts =
+-- | Re-generate the legend for a plot
+redrawPlotLegend :: Plot -> IO ()
+redrawPlotLegend plot = schedulePlotTask plot $ const $ do
+    font <- P.fontDescriptionNew
+    P.fontDescriptionSetSize font 24
+    curves <- atomically $ readTVar (plot ^. pCurves)
+    let entries = undefined
+    legend <- renderLegend font entries
+    oldLegend <- atomically $ do
+        old <- readTVar (plot ^. pLegend)
+        writeTVar (plot ^. pLegend) (Just legend)
+        return old
+    case oldLegend of
+      Nothing -> return ()
+      Just texture -> deleteObjectName texture
+
+-- | Upload the given points buffer
+uploadPoints :: Curve -> V.Vector (V2 GLfloat) -> IO ()
+uploadPoints curve pts =
     let (fptr, offset, length) = V.unsafeToForeignPtr pts
         ptrSize = toEnum $ 4 * 2 * V.length pts
         array = curve ^. cBuffer
@@ -120,8 +181,9 @@ setPoints curve pts =
          bufferData ArrayBuffer $= (ptrSize, ptr, StreamDraw)
          atomically $ writeTVar (curve ^. cPoints) (V.length pts)
 
-display :: Plot -> IO ()
-display plot = do
+-- | Draw the given plot
+drawPlot :: Plot -> IO ()
+drawPlot plot = do
     depthFunc $= Nothing
     clearColor $= Color4 1 1 1 1
     clear [ColorBuffer]
@@ -133,11 +195,12 @@ display plot = do
     curves <- atomically $ readTVar (plot^.pCurves)
     forM_ curves $ \c->do
         let updatePoints Nothing = return False
-            updatePoints (Just pts) = setPoints c pts >> return True
+            updatePoints (Just pts) = uploadPoints c pts >> return True
             GetPoints getPoints = c ^. cGetPoints
         updated <- getPoints updatePoints
         drawCurve c
 
+-- | Draw the given curve
 drawCurve :: Curve -> IO ()
 drawCurve c = do
     loc <- get $ uniformLocation (c ^. cPlot . pProgram) "color"
@@ -152,15 +215,3 @@ drawCurve c = do
     drawArrays primMode 0 (fromIntegral nPoints)
     vertexAttribArray (AttribLocation 0) $= Disabled
     bindBuffer ArrayBuffer $= Nothing
-
-setLegend :: Plot -> [(Color4 Double, String)] -> IO ()
-setLegend plot entries = do
-    scheduleUpdate plot $ do
-        writeTVar (plot ^. pGetLegend) getLegend
-  where
-    getLegend = do
-      font <- P.fontDescriptionNew
-      P.fontDescriptionSetSize font 24
-      legend <- renderLegend font entries
-      atomically $ writeTVar (plot ^. pGetLegend) (return $ Just legend)
-      return (Just legend)
