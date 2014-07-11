@@ -30,7 +30,6 @@ import Control.Concurrent.STM
 
 import Graphics.Rendering.GLPlot.Types
 import Graphics.Rendering.GLPlot.Lenses
-import Graphics.Rendering.GLPlot.Text
 
 maxUpdateRate = 30  -- frames per second
 
@@ -68,6 +67,7 @@ mainLoop plots = do
         let redraw = True
         when redraw $ do GLFW.makeContextCurrent $ Just window
                          display plot
+                         print "hi"
                          finish
                          GLFW.swapBuffers window
         close <- windowShouldClose window
