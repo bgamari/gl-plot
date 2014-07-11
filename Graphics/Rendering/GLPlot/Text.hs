@@ -59,7 +59,6 @@ drawTexture (x,y) t = do
     blend $= Enabled
     blendEquation $= FuncAdd
     blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
-    --currentColor $= Color4 1 1 1 0.5
 
     matrixMode $= Modelview 0
     mv <- get $ matrix (Just $ Modelview 0)
