@@ -16,6 +16,7 @@ import Data.Foldable
 import Control.Lens
 import Data.Maybe (fromMaybe, catMaybes)
 import Control.Monad (when, forever, void, liftM, forM)
+import Control.Monad.Trans.Either
 import Linear
 
 import Foreign.ForeignPtr.Safe
@@ -30,6 +31,7 @@ import Control.Concurrent.STM
 
 import Graphics.Rendering.GLPlot.Types
 import Graphics.Rendering.GLPlot.Lenses
+import Graphics.Rendering.GLPlot.Shaders
 
 maxUpdateRate = 30  -- frames per second
 
@@ -48,10 +50,12 @@ newPlot title = do
     curves <- newTVarIO []
     needsRedraw <- newTVarIO False
     limits <- newTVarIO $ Rect (V2 0 0) (V2 1 1)
+    program <- either error id `fmap` runEitherT buildProgram
     let plot = Plot { _pWindow       = window
                     , _pCurves       = curves
                     , _pLimits       = limits
                     , _pNeedsRedraw  = needsRedraw
+                    , _pProgram      = program
                     }
     display plot
     return plot
@@ -67,7 +71,6 @@ mainLoop plots = do
         let redraw = True
         when redraw $ do GLFW.makeContextCurrent $ Just window
                          display plot
-                         print "hi"
                          finish
                          GLFW.swapBuffers window
         close <- windowShouldClose window
@@ -104,7 +107,7 @@ setPoints curve pts =
         ptrSize = toEnum $ 4 * 2 * V.length pts
         array = curve ^. cBuffer
     in withForeignPtr fptr $ \ptr->do
-         bindBuffer ElementArrayBuffer $= Just array
+         bindBuffer ArrayBuffer $= Just array
          bufferData ArrayBuffer $= (ptrSize, ptr, StreamDraw)
          atomically $ writeTVar (curve ^. cPoints) (V.length pts)
 
@@ -117,6 +120,7 @@ display plot = do
     matrixMode $= Modelview 0
     loadIdentity
     GLU.ortho2D (a^._x) (b^._x) (a^._y) (b^._y)
+    currentProgram $= Just (plot ^. pProgram)
     curves <- atomically $ readTVar (plot^.pCurves)
     forM_ curves $ \c->do
         let updatePoints Nothing = return False
@@ -127,14 +131,15 @@ display plot = do
 
 drawCurve :: Curve -> IO ()
 drawCurve c = do
-    currentColor $= (c ^. cParams . cColor)
+    loc <- get $ uniformLocation (c ^. cPlot . pProgram) "color"
+    uniform loc $= c ^. cParams . cColor
     nPoints <- atomically $ readTVar (c ^. cPoints)
     let primMode = case c ^. cParams . cStyle of
                 Lines    -> GL.LineStrip
                 Points   -> GL.Points
-    bindBuffer ElementArrayBuffer $= Just (c ^. cBuffer)
-    clientState VertexArray $= Enabled
-    arrayPointer VertexArray $= VertexArrayDescriptor 2 Float 8 nullPtr
+    bindBuffer ArrayBuffer $= Just (c ^. cBuffer)
+    vertexAttribPointer (AttribLocation 0) $= (ToFloat, VertexArrayDescriptor 2 Float 8 nullPtr)
+    vertexAttribArray (AttribLocation 0) $= Enabled
     drawArrays primMode 0 (fromIntegral nPoints)
-    clientState VertexArray $= Disabled
+    vertexAttribArray (AttribLocation 0) $= Disabled
     bindBuffer ArrayBuffer $= Nothing

@@ -42,4 +42,5 @@ data Plot = Plot { _pWindow       :: !Window
                  , _pCurves       :: !(TVar [Curve])
                  , _pLimits       :: !(TVar (Rect GLdouble))
                  , _pNeedsRedraw  :: !(TVar Bool)
+                 , _pProgram      :: Program
                  }

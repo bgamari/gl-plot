@@ -18,6 +18,8 @@ library
                        Graphics.Rendering.GLPlot.Lenses
   build-depends:       base >=4.6,
                        vector >=0.10,
+                       transformers,
+                       either,
                        OpenGL,
                        GLFW-b,
                        linear >=1.1,
@@ -32,6 +34,8 @@ executable glplot-test
   ghc-options:         -threaded
   build-depends:       base >=4.6,
                        vector >=0.10,
+                       transformers,
+                       either,
                        OpenGL,
                        GLFW-b,
                        linear >=1.1,

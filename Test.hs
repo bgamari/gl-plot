@@ -15,7 +15,7 @@ main = do
     plot <- newPlot "Hello World!"
     setLimits plot $ Rect (V2 (-2) (-2)) (V2 2 2)
     time <- newIORef 2
-    let params = cColor  .~ (Color4 0.8 0.6 0.4 0)   
+    let params = cColor  .~ (Color4 0.8 0.6 0.4 0)
                $ cStyle  .~ Lines
                $ defaultCurve
         update push = do
@@ -23,6 +23,18 @@ main = do
           modifyIORef time (+1e-5)
           push $ Just $ plotData t
     curve <- newCurve plot params (GetPoints update)
+
+    done <- newIORef False
+    let params2 = cColor  .~ (Color4 0.1 0.6 0.4 0)
+                $ cStyle  .~ Lines
+                $ defaultCurve
+        update2 push = do
+          d <- readIORef done
+          writeIORef done True
+          if d
+            then push Nothing
+            else push $ Just $ plotData 5
+    curve <- newCurve plot params2 (GetPoints update2)
     mainLoop [plot]
 
 plotData :: GLfloat -> V.Vector (V2 GLfloat)
