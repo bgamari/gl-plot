@@ -6,15 +6,16 @@ module Graphics.Rendering.GLPlot ( -- * Main loop context
                                  , Plot
                                  , newPlot
                                  , setLimits
-                                 , scheduleRedraw
+                                 , setPoints
                                  , Rect(..)
                                    -- * Curves
                                  , Curve
                                  , newCurve
-                                 , GetPoints(..)
                                  , defaultCurve
                                  , CurveParams, cColor, cStyle, cName
                                  , Style(..)
+                                   -- * Diagnostics
+                                 , getFrameCount
                                  ) where
 
 import Data.Foldable
@@ -90,6 +91,7 @@ redrawPlot plot window = do
     --    Nothing -> return ()
     finish
     GLFW.swapBuffers window
+    atomically $ modifyTVar (plot ^. pFrameCount) (+1)
 
 -- | Create a new plot
 newPlot :: Context -> String -> IO Plot
@@ -108,12 +110,14 @@ newPlot mainloop title = do
     GLFW.makeContextCurrent Nothing
 
     windowVar <- newTMVarIO window
+    frameCount <- newTVarIO 0
     let plot = Plot { _pWindow       = windowVar
                     , _pCurves       = curves
                     , _pLimits       = limits
                     , _pMainloop     = mainloop
                     , _pLegend       = legend
                     , _pProgram      = program
+                    , _pFrameCount   = frameCount
                     }
 
     withPlotContext plot $ const $ do
@@ -134,6 +138,11 @@ newPlot mainloop title = do
     scheduleRedraw plot
     return plot
 
+-- | Get the number of frames rendered since the last call to
+-- @getFrameCount@
+getFrameCount :: Plot -> IO Int
+getFrameCount plot = atomically $ swapTVar (plot ^. pFrameCount) 0
+
 -- | Set the bounds of the plot area
 setLimits :: Plot -> Rect GLdouble -> IO ()
 setLimits plot limits = do
@@ -141,12 +150,11 @@ setLimits plot limits = do
     scheduleRedraw plot
 
 -- | Create a new curve
-newCurve :: Plot -> CurveParams -> GetPoints -> IO Curve
-newCurve plot params getPoints = withPlotContext plot $ const $ do
+newCurve :: Plot -> CurveParams -> IO Curve
+newCurve plot params = withPlotContext plot $ const $ do
     buffer <- genObjectName
     points <- newTVarIO 0
     let s = Curve { _cParams = params
-                  , _cGetPoints = getPoints
                   , _cBuffer = buffer
                   , _cPoints = points
                   , _cPlot = plot
@@ -181,6 +189,13 @@ uploadPoints curve pts =
          bufferData ArrayBuffer $= (ptrSize, ptr, StreamDraw)
          atomically $ writeTVar (curve ^. cPoints) (V.length pts)
 
+-- | Set the points of a curve
+setPoints :: Curve -> V.Vector (V2 GLfloat) -> IO ()
+setPoints curve pts = withPlotContext plot $ const $ do
+    uploadPoints curve pts
+    scheduleRedraw plot
+  where plot = curve ^. cPlot
+
 -- | Draw the given plot
 drawPlot :: Plot -> IO ()
 drawPlot plot = do
@@ -193,12 +208,7 @@ drawPlot plot = do
     GLU.ortho2D (a^._x) (b^._x) (a^._y) (b^._y)
     currentProgram $= Just (plot ^. pProgram)
     curves <- atomically $ readTVar (plot^.pCurves)
-    forM_ curves $ \c->do
-        let updatePoints Nothing = return False
-            updatePoints (Just pts) = uploadPoints c pts >> return True
-            GetPoints getPoints = c ^. cGetPoints
-        updated <- getPoints updatePoints
-        drawCurve c
+    forM_ curves drawCurve
 
 -- | Draw the given curve
 drawCurve :: Curve -> IO ()

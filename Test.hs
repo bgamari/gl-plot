@@ -16,31 +16,29 @@ main = do
     --               , (Color4 0 1 0 1, "Hello Again!")
     --               , (Color4 0 0 1 1, "Ho ho ho ho!")
     --               ]
-    time <- newIORef 2
+
     let params = cColor  .~ (Color4 0.8 0.6 0.4 0)
                $ cStyle  .~ Lines
                $ defaultCurve
-        update push = do
-          t <- readIORef time
-          modifyIORef time (+1e-5)
-          push $ Just $ plotData t
-    curve <- newCurve plot params (GetPoints update)
+    curve1 <- newCurve plot params
 
     done <- newIORef False
     let params2 = cColor  .~ (Color4 0.1 0.6 0.4 0)
                 $ cStyle  .~ Lines
                 $ defaultCurve
-        update2 push = do
-          d <- readIORef done
-          writeIORef done True
-          if d
-            then push Nothing
-            else push $ Just $ plotData 5
-    curve <- newCurve plot params2 (GetPoints update2)
+    curve2 <- newCurve plot params2
+    setPoints curve2 $ plotData 2
+
     forkIO $ runContext ctx
-    forever $ do
-        scheduleRedraw plot
+    forkIO $ forever $ do
+        threadDelay 1000000
+        getFrameCount plot >>= print
+
+    let go t = do
+        setPoints curve1 $ plotData t
         threadDelay $ 1000000 `div` 30
+        go (t+1e-5)
+    go 2
 
 plotData :: GLfloat -> V.Vector (V2 GLfloat)
 plotData t =
