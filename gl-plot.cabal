@@ -16,6 +16,7 @@ library
   exposed-modules:     Graphics.Rendering.GLPlot
   other-modules:       Graphics.Rendering.GLPlot.Types,
                        Graphics.Rendering.GLPlot.Lenses,
+                       Graphics.Rendering.GLPlot.Shaders,
                        Graphics.Rendering.GLPlot.Text
   build-depends:       base >=4.6,
                        vector >=0.10,
