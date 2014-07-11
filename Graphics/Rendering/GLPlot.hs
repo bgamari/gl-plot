@@ -114,7 +114,7 @@ display plot = do
     clearColor $= Color4 1 1 1 1
     clear [ColorBuffer]
     Rect a b <- atomically $ readTVar (plot ^. pLimits)
-    matrixMode $= Projection
+    matrixMode $= Modelview 0
     loadIdentity
     GLU.ortho2D (a^._x) (b^._x) (a^._y) (b^._y)
     curves <- atomically $ readTVar (plot^.pCurves)
