@@ -13,15 +13,20 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 library
-  exposed-modules:     Graphics.Rendering.GLPlot
-  other-modules:       Graphics.Rendering.GLPlot.Types
+  exposed-modules:     Graphics.Rendering.GLPlot,
+                       Graphics.Rendering.GLPlot.Text
+  other-modules:       Graphics.Rendering.GLPlot.Types,
+                       Graphics.Rendering.GLPlot.Lenses
   build-depends:       base >=4.6,
                        vector >=0.10,
                        OpenGL,
                        GLFW-b,
                        linear >=1.1,
                        lens >=3.9,
-                       stm >=2.4
+                       stm >=2.4,
+                       cairo,
+                       pango,
+                       bytestring
 
 executable glplot-test
   main-is:             Test.hs
@@ -32,4 +37,7 @@ executable glplot-test
                        GLFW-b,
                        linear >=1.1,
                        lens >=3.9,
-                       stm >=2.4
+                       stm >=2.4,
+                       cairo,
+                       pango,
+                       bytestring
