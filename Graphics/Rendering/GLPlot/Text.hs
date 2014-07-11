@@ -46,6 +46,7 @@ renderToTexture w h render = do
       texImage2D Texture2D NoProxy 0 RGBA' size 0 pixelData
     return texture
 
+-- | Draw a texture without scaling at the GL modelview coordinates given
 drawTexture :: (GLdouble, GLdouble) -> TextureObject -> IO ()
 drawTexture (x,y) t = do
     textureBinding Texture2D $= Just t
@@ -58,7 +59,7 @@ drawTexture (x,y) t = do
     blend $= Enabled
     blendEquation $= FuncAdd
     blendFunc $= (SrcAlpha, OneMinusSrcAlpha)
-    currentColor $= Color4 1 1 1 1
+    --currentColor $= Color4 1 1 1 0.5
 
     matrixMode $= Modelview 0
     mv <- get $ matrix (Just $ Modelview 0)
@@ -82,6 +83,7 @@ drawTexture (x,y) t = do
     texCoord' = texCoord :: TexCoord2 GLint -> IO ()
 
 renderLegend :: P.FontDescription -> [(Color4 Double, String)] -> IO TextureObject
+renderLegend font [] = error "legend with no entries"
 renderLegend font entries = do
     pango <- P.cairoCreateContext Nothing
     layouts <- forM entries $ \(_, s)->do
@@ -95,12 +97,30 @@ renderLegend font entries = do
         h = maximum (map (\(_,h)->lineSpacing * realToFrac h) sizes)
         w = maximum (map (\(w,_)->w) sizes) + 50
         colors = map fst entries
+    print (w,h)
     renderToTexture w (length entries * ceiling h) $ do
         C.setOperator C.OperatorSource
-        C.setSourceRGBA 1 1 1 0
+        C.setSourceRGBA 0 0 0 0
         C.paint
+
+        C.setSourceRGBA 0 0 0 0.7
+        roundedRect (V2 0 0) (V2 (realToFrac w) (realToFrac (length entries)*h)) 10
+        C.fill
+
         forM_ (zip3 [0..] colors layouts) $ \(n,color,layout)->do
             let Color4 r g b a = fmap (round . (*0xffff)) color
             C.moveTo 50 (n*h)
             P.setSourceColor $ P.Color r g b
             P.showLayout layout
+
+roundedRect :: V2 Double -> V2 Double -> Double -> C.Render ()
+roundedRect (V2 x0 y0) (V2 x1 y1) r = do
+    C.newPath
+    corner (x0+r)  (y0+r) (2*pi/2)  (3*pi/2)
+    corner (x1-r)  (y0+r) (3*pi/2)  (4*pi/2)
+    corner (x1-r)  (y1-r) (4*pi/2)  (5*pi/2)
+    corner (x0+r)  (y1-r) (5*pi/2)  (6*pi/2)
+    C.closePath
+  where
+    corner x y angle1 angle2 = C.arc x y r angle1 angle2
+    corner' x y _ _ = C.lineTo x y

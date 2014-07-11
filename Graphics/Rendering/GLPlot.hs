@@ -18,7 +18,7 @@ module Graphics.Rendering.GLPlot ( -- * Main loop context
                                  ) where
 
 import Data.Foldable
-import Data.Maybe (fromMaybe, catMaybes)
+import Data.Maybe (fromMaybe, catMaybes, mapMaybe)
 import Control.Monad (when, forever, void, liftM, forM)
 import Control.Monad.Trans.Either
 import Control.Lens hiding (Context)
@@ -83,9 +83,10 @@ scheduleRedraw plot = schedulePlotTask plot (redrawPlot plot)
 redrawPlot :: Plot -> Window -> IO ()
 redrawPlot plot window = do
     drawPlot plot
-    --case plot ^. pLegend of
-    --    Just texture -> drawTexture (-1,0) texture
-    --    Nothing -> return ()
+    legend <- atomically $ readTVar (plot ^. pLegend)
+    case legend of
+        Just texture -> drawTexture (-0,0) texture
+        Nothing -> return ()
     finish
     GLFW.swapBuffers window
     atomically $ modifyTVar (plot ^. pFrameCount) (+1)
@@ -99,6 +100,7 @@ newPlot mainloop title = do
               `liftM` GLFW.createWindow 400 300 title Nothing Nothing
     curves <- newTVarIO []
     legend <- newTVarIO Nothing
+    legendPos <- newTVarIO Nothing
     limits <- newTVarIO $ Rect (V2 0 0) (V2 1 1)
 
     GLFW.makeContextCurrent (Just window)
@@ -112,6 +114,7 @@ newPlot mainloop title = do
                     , _pCurves       = curves
                     , _pLimits       = limits
                     , _pMainloop     = mainloop
+                    , _pLegendPos    = legendPos
                     , _pLegend       = legend
                     , _pProgram      = program
                     , _pFrameCount   = frameCount
@@ -157,23 +160,34 @@ newCurve plot params = withPlotContext plot $ const $ do
                   , _cPlot = plot
                   }
     atomically $ modifyTVar (plot ^. pCurves) (s:)
+    schedulePlotTask plot (const $ redrawPlotLegend plot)
     return s
 
 -- | Re-generate the legend for a plot
 redrawPlotLegend :: Plot -> IO ()
 redrawPlotLegend plot = schedulePlotTask plot $ const $ do
-    font <- P.fontDescriptionNew
-    P.fontDescriptionSetSize font 24
     curves <- atomically $ readTVar (plot ^. pCurves)
-    let entries = undefined
-    legend <- renderLegend font entries
-    oldLegend <- atomically $ do
-        old <- readTVar (plot ^. pLegend)
-        writeTVar (plot ^. pLegend) (Just legend)
-        return old
-    case oldLegend of
-      Nothing -> return ()
-      Just texture -> deleteObjectName texture
+    let curveToEntry c =
+          case p ^. cName of
+            Just name -> Just (fmap realToFrac $ p ^. cColor, name)
+            Nothing   -> Nothing
+          where p = c ^. cParams
+        entries = mapMaybe curveToEntry curves
+    case entries of
+      [] -> return ()
+      _  -> drawLegend entries
+  where
+    drawLegend entries = do
+        font <- P.fontDescriptionNew
+        P.fontDescriptionSetSize font 24
+        legend <- renderLegend font entries
+        oldLegend <- atomically $ do
+            old <- readTVar (plot ^. pLegend)
+            writeTVar (plot ^. pLegend) (Just legend)
+            return old
+        case oldLegend of
+          Nothing -> return ()
+          Just texture -> deleteObjectName texture
 
 -- | Upload the given points buffer
 uploadPoints :: Curve -> V.Vector (V2 GLfloat) -> IO ()
@@ -206,6 +220,7 @@ drawPlot plot = do
     currentProgram $= Just (plot ^. pProgram)
     curves <- atomically $ readTVar (plot^.pCurves)
     forM_ curves drawCurve
+    currentProgram $= Nothing
 
 -- | Draw the given curve
 drawCurve :: Curve -> IO ()

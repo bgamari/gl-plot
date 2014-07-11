@@ -19,6 +19,7 @@ main = do
 
     let params = cColor  .~ (Color4 0.8 0.6 0.4 0)
                $ cStyle  .~ Lines
+               $ cName   .~ Just "Hello world!"
                $ defaultCurve
     curve1 <- newCurve plot params
 

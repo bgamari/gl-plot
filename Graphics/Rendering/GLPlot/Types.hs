@@ -38,7 +38,7 @@ data Plot = Plot { _pWindow       :: !(TMVar Window)
                  , _pCurves       :: !(TVar [Curve])
                  , _pLimits       :: !(TVar (Rect GLdouble))
                  , _pMainloop     :: !Context
-                 -- , _pDrawLegend   :: !Bool
+                 , _pLegendPos    :: !(TVar (Maybe (V2 GLfloat)))
                  , _pLegend       :: !(TVar (Maybe TextureObject))
                  , _pProgram      :: Program
                  , _pFrameCount   :: !(TVar Int)
