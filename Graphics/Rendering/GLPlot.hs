@@ -61,7 +61,7 @@ newContext = do
 scheduleTask :: Context -> IO () -> IO ()
 scheduleTask ctx task = atomically $ writeTQueue (ctx ^. ctxTasks) task
 
--- | Perform the given action with the plot's context active
+-- | Perform the given action with the plot's GL context active
 withPlotContext :: Plot -> (Window -> IO a) -> IO a
 withPlotContext plot action = do
     window <- atomically $ takeTMVar $ plot ^. pWindow
@@ -71,7 +71,7 @@ withPlotContext plot action = do
     atomically $ putTMVar (plot ^. pWindow) window
     return r
 
--- | Schedule a task for the given plot
+-- | Schedule a task with the given plot's GL context active
 schedulePlotTask :: Plot -> (Window -> IO ()) -> IO ()
 schedulePlotTask plot action =
     scheduleTask (plot ^. pMainloop) $ withPlotContext plot action
