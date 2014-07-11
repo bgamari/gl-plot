@@ -5,11 +5,11 @@ module Graphics.Rendering.GLPlot ( -- * Main loop context
                                  , Plot
                                  , newPlot
                                  , setLimits
-                                 , setPoints
                                  , Rect(..)
                                    -- * Curves
                                  , Curve
                                  , newCurve
+                                 , setPoints
                                  , defaultCurve
                                  , CurveParams, cColor, cStyle, cName
                                  , Style(..)
