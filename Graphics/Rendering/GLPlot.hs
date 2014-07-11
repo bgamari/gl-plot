@@ -8,6 +8,8 @@ module Graphics.Rendering.GLPlot ( newPlot
                                  , defaultCurve
                                  , CurveParams, cColor, cStyle, cName
                                  , Style(..)
+                                   -- * Legend
+                                 , setLegend
                                    -- * A simple main loop
                                  , mainLoop
                                  ) where
@@ -22,16 +24,18 @@ import Linear
 import Foreign.ForeignPtr.Safe
 import Foreign.Ptr (nullPtr)
 import qualified Data.Vector.Storable as V
-import Graphics.UI.GLFW as GLFW
+import           Graphics.UI.GLFW as GLFW
 import           Graphics.Rendering.OpenGL.GL hiding (Points, Lines, Rect(..))
 import qualified Graphics.Rendering.OpenGL.GL as GL
-import Graphics.Rendering.OpenGL.GLU as GLU
+import           Graphics.Rendering.OpenGL.GLU as GLU
+import qualified Graphics.Rendering.Pango as P
 import Control.Concurrent
 import Control.Concurrent.STM
 
 import Graphics.Rendering.GLPlot.Types
 import Graphics.Rendering.GLPlot.Lenses
 import Graphics.Rendering.GLPlot.Shaders
+import Graphics.Rendering.GLPlot.Text
 
 maxUpdateRate = 30  -- frames per second
 
@@ -69,10 +73,15 @@ mainLoop plots = do
         let window = (plot ^. pWindow)
         --redraw <- atomically $ swapTVar (plot ^. pNeedsRedraw) False
         let redraw = True
-        when redraw $ do GLFW.makeContextCurrent $ Just window
-                         display plot
-                         finish
-                         GLFW.swapBuffers window
+        when redraw $ do
+            GLFW.makeContextCurrent $ Just window
+            display plot
+            legend <- atomically (readTVar (plot ^. pGetLegend)) >>= id
+            case legend of
+              Just texture -> drawTexture (-1,0) texture
+ 			  Nothing -> return ()
+            finish
+            GLFW.swapBuffers window
         close <- windowShouldClose window
         return $ if close then Nothing else Just plot
     mainLoop $ catMaybes plots'
@@ -143,3 +152,15 @@ drawCurve c = do
     drawArrays primMode 0 (fromIntegral nPoints)
     vertexAttribArray (AttribLocation 0) $= Disabled
     bindBuffer ArrayBuffer $= Nothing
+
+setLegend :: Plot -> [(Color4 Double, String)] -> IO ()
+setLegend plot entries = do
+    scheduleUpdate plot $ do
+        writeTVar (plot ^. pGetLegend) getLegend
+  where
+    getLegend = do
+      font <- P.fontDescriptionNew
+      P.fontDescriptionSetSize font 24
+      legend <- renderLegend font entries
+      atomically $ writeTVar (plot ^. pGetLegend) (return $ Just legend)
+      return (Just legend)

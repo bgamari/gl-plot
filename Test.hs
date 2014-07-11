@@ -14,6 +14,10 @@ main = do
 
     plot <- newPlot "Hello World!"
     setLimits plot $ Rect (V2 (-2) (-2)) (V2 2 2)
+    setLegend plot [ (Color4 1 0 0 1, "Hello World!")
+                   , (Color4 0 1 0 1, "Hello Again!")
+                   , (Color4 0 0 1 1, "Ho ho ho ho!")
+                   ]
     time <- newIORef 2
     let params = cColor  .~ (Color4 0.8 0.6 0.4 0)
                $ cStyle  .~ Lines
