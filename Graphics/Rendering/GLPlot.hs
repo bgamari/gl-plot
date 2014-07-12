@@ -23,6 +23,7 @@ import Control.Monad (when, forever, void, liftM, forM)
 import Control.Monad.Trans.Either
 import Control.Lens hiding (Context)
 import Linear
+import Linear.OpenGL
 
 import Foreign.ForeignPtr.Safe
 import Foreign.Ptr (nullPtr)
@@ -227,6 +228,11 @@ drawCurve :: Curve -> IO ()
 drawCurve c = do
     loc <- get $ uniformLocation (c ^. cPlot . pProgram) "color"
     uniform loc $= c ^. cParams . cColor
+
+    loc <- get $ uniformLocation (c ^. cPlot . pProgram) "matrix"
+    mat <- get $ matrix (Just $ Modelview 0) :: IO (GLmatrix GLfloat)
+    uniform loc $= (mat ^. from m44GLmatrix)
+
     nPoints <- atomically $ readTVar (c ^. cPoints)
     let primMode = case c ^. cParams . cStyle of
                 Lines    -> GL.LineStrip

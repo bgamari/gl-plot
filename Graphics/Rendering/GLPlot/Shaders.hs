@@ -7,16 +7,16 @@ import Graphics.Rendering.OpenGL.GL
        
 vertexShader = BS.pack $ unlines
     [ "#version 130"
-    , "in  vec3 in_Position;"
+    , "in vec3 position;"
+    , "uniform mat4 matrix;"
     , "void main() "
     , "{"
-    , "    gl_Position = vec4(in_Position.x, in_Position.y, in_Position.z, 1.0);"
+    , "    gl_Position = matrix * vec4(position.x, position.y, 0, 1.0);"
     , "}"
     ]
        
 fragmentShader = BS.pack $ unlines
     [ "#version 130"
-    , "precision highp float;"
     , "uniform vec4 color;"
     , "out vec4 fragColor;"
     , "void main()"
@@ -41,6 +41,6 @@ buildProgram = do
     vertex <- newShader VertexShader vertexShader
     fragment <- newShader FragmentShader fragmentShader
     liftIO $ attachedShaders prg $= [vertex, fragment]
-    liftIO $ attribLocation prg "in_Position" $= AttribLocation 0
+    liftIO $ attribLocation prg "position" $= AttribLocation 0
     liftIO $ linkProgram prg
     return prg
