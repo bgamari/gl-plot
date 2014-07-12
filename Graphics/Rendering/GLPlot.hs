@@ -128,9 +128,11 @@ newPlot mainloop title = do
 
     withPlotContext plot $ const $ do
         viewport $= (Position 0 0, Size 400 300)
-        setFramebufferSizeCallback window $ Just $ \_ w h->do
-            viewport $= (Position 0 0, Size (fromIntegral w) (fromIntegral h))
-            redrawPlot plot window
+        setFramebufferSizeCallback window
+            $ Just $ \_ w h->schedulePlotTask plot $ const $ do
+                viewport $= ( Position 0 0
+                            , Size (fromIntegral w) (fromIntegral h))
+                redrawPlot plot window
 
     -- Ensure we periodically poll GLFW for events
     forkIO $ forever $ do
