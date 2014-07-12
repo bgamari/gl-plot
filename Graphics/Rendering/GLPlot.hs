@@ -50,7 +50,7 @@ newContext = do
     when (not result) $ error "Failed to initialize GLFW"
 
     taskQueue <- newTQueueIO
-    forkIO $ forever $ do
+    forkOS $ forever $ do
         task <- atomically $ readTQueue taskQueue
         task
 
