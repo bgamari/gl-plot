@@ -79,10 +79,13 @@ schedulePlotTask plot action =
 
 -- | Schedule a redraw of a plot
 scheduleRedraw :: Plot -> IO ()
-scheduleRedraw plot = schedulePlotTask plot (redrawPlot plot)
+scheduleRedraw plot = do
+    scheduled <- atomically $ swapTVar (plot ^. pRedrawScheduled) True
+    when (not scheduled) $ schedulePlotTask plot (redrawPlot plot)
 
 redrawPlot :: Plot -> Window -> IO ()
 redrawPlot plot window = do
+    atomically $ writeTVar (plot ^. pRedrawScheduled) False
     drawPlot plot
     legend <- atomically $ readTVar (plot ^. pLegend)
     case legend of
@@ -100,8 +103,9 @@ newPlot mainloop title = do
     window <- fromMaybe (error "GLPlot: Failed to create window")
               `liftM` GLFW.createWindow 400 300 title Nothing Nothing
     curves <- newTVarIO []
-    legend <- newTVarIO Nothing
+    redrawScheduled <- newTVarIO False
     legendPos <- newTVarIO Nothing
+    legend <- newTVarIO Nothing
     limits <- newTVarIO $ Rect (V2 0 0) (V2 1 1)
 
     GLFW.makeContextCurrent (Just window)
@@ -115,6 +119,7 @@ newPlot mainloop title = do
                     , _pCurves       = curves
                     , _pLimits       = limits
                     , _pMainloop     = mainloop
+                    , _pRedrawScheduled = redrawScheduled
                     , _pLegendPos    = legendPos
                     , _pLegend       = legend
                     , _pProgram      = program
