@@ -92,23 +92,26 @@ renderLegend font entries = do
     sizes <- forM layouts $ \layout->do
         (_, P.Rectangle _ _ w h) <- P.layoutGetPixelExtents layout
         return (w,h)
-    let lineSpacing = 1.5
+    let lineSpacing = 1.2
         h = maximum (map (\(_,h)->lineSpacing * realToFrac h) sizes)
-        w = maximum (map (\(w,_)->w) sizes) + 50
+        w = maximum (map (\(w,_)->w) sizes)
         colors = map fst entries
-    print (w,h)
-    renderToTexture w (length entries * ceiling h) $ do
+
+    let pad = V2 10 10
+        size = V2 w (length entries * ceiling h) ^+^ 2 *^ pad
+        sizeR = fmap realToFrac size
+    renderToTexture (size ^. _x) (size ^. _y) $ do
         C.setOperator C.OperatorSource
         C.setSourceRGBA 0 0 0 0
         C.paint
 
         C.setSourceRGBA 0 0 0 0.7
-        roundedRect (V2 0 0) (V2 (realToFrac w) (realToFrac (length entries)*h)) 10
+        roundedRect (V2 0 0) sizeR 10
         C.fill
 
         forM_ (zip3 [0..] colors layouts) $ \(n,color,layout)->do
             let Color4 r g b a = fmap (round . (*0xffff)) color
-            C.moveTo 50 (n*h)
+            C.moveTo (realToFrac $ pad ^. _x) (n*h + realToFrac (pad ^. _y))
             P.setSourceColor $ P.Color r g b
             P.showLayout layout
 
