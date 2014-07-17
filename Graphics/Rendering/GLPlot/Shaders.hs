@@ -7,7 +7,7 @@ import Graphics.Rendering.OpenGL.GL
        
 vertexShader = BS.pack $ unlines
     [ "#version 130"
-    , "in vec3 position;"
+    , "in vec2 position;"
     , "uniform mat4 matrix;"
     , "void main() "
     , "{"
