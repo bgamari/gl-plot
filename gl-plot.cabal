@@ -47,5 +47,17 @@ executable glplot-test
                        GLFW-b,
                        lens >=3.9,
                        linear >=1.1,
-                       linear-opengl,
+                       gl-plot
+
+executable glplot
+  main-is:             Main.hs
+  ghc-options:         -threaded
+  build-depends:       base >=4.6,
+                       vector >=0.10,
+                       transformers,
+                       either,
+                       OpenGL,
+                       GLFW-b,
+                       lens >=3.9,
+                       linear >=1.1,
                        gl-plot
