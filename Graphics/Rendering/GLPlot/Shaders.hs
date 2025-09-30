@@ -1,10 +1,12 @@
-module Graphics.Rendering.GLPlot.Shaders where
+module Graphics.Rendering.GLPlot.Shaders
+    ( buildProgram
+    ) where
 
 import Control.Monad.Trans.Either
 import Control.Monad.IO.Class
 import qualified Data.ByteString.Char8 as BS
 import Graphics.Rendering.OpenGL.GL
-       
+
 vertexShader = BS.pack $ unlines
     [ "#version 130"
     , "in vec2 position;"
@@ -14,7 +16,7 @@ vertexShader = BS.pack $ unlines
     , "    gl_Position = matrix * vec4(position.x, position.y, 0, 1.0);"
     , "}"
     ]
-       
+
 fragmentShader = BS.pack $ unlines
     [ "#version 130"
     , "uniform vec4 color;"

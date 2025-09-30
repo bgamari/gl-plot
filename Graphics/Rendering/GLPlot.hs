@@ -1,21 +1,22 @@
-module Graphics.Rendering.GLPlot ( -- * Main loop context
-                                   Context
-                                 , newContext
-                                   -- * Plots
-                                 , Plot
-                                 , newPlot
-                                 , setLimits
-                                 , Rect(..)
-                                   -- * Curves
-                                 , Curve
-                                 , newCurve
-                                 , setPoints
-                                 , defaultCurve
-                                 , CurveParams, cColor, cStyle, cName
-                                 , Style(..)
-                                   -- * Diagnostics
-                                 , getFrameCount
-                                 ) where
+module Graphics.Rendering.GLPlot
+    ( -- * Main loop context
+      Context
+    , newContext
+      -- * Plots
+    , Plot
+    , newPlot
+    , setLimits
+    , Rect(..)
+      -- * Curves
+    , Curve
+    , newCurve
+    , setPoints
+    , defaultCurve
+    , CurveParams, cColor, cStyle, cName
+    , Style(..)
+      -- * Diagnostics
+    , getFrameCount
+    ) where
 
 import Data.Foldable
 import Data.Maybe (fromMaybe, catMaybes, mapMaybe)
