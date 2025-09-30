@@ -7,7 +7,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Ben Gamari
 maintainer:          bgamari.foss@gmail.com
--- copyright:           
+copyright:           (c) 2024 Ben Gamari
 category:            Graphics
 build-type:          Simple
 cabal-version:       >=1.8
@@ -28,8 +28,8 @@ library
                        linear >=1.1,
                        linear-opengl,
                        stm >=2.4,
-                       cairo,
-                       pango,
+                       gi-cairo,
+                       gi-pango,
                        bytestring
 
 executable glplot-test
@@ -45,6 +45,6 @@ executable glplot-test
                        linear >=1.1,
                        linear-opengl,
                        stm >=2.4,
-                       cairo,
-                       pango,
+                       gi-cairo,
+                       gi-pango,
                        bytestring
