@@ -7,9 +7,11 @@ module Graphics.Rendering.GLPlot.Text
 
 import qualified GI.Cairo.Render as C
 import           GI.Cairo.Render (Surface)
---import qualified GI.Pango as P
-import qualified GI.PangoCairo as P
+import GI.Cairo.Render.Connector (renderWithContext, toRender)
+import qualified GI.Pango as P
+import qualified GI.PangoCairo as PC
 import qualified Data.ByteString.Unsafe as BSU
+import qualified Data.Text as T
 import Graphics.Rendering.OpenGL.GL
 import Graphics.Rendering.OpenGL.GLU.Matrix
 import Control.Lens
@@ -18,22 +20,24 @@ import Data.Foldable (forM_)
 import Linear
 import Linear.OpenGL
 
-renderText :: String -> IO TextureObject
+renderText :: T.Text -> IO TextureObject
 renderText text = do
     font <- P.fontDescriptionNew
     P.fontDescriptionSetSize font 24
 
-    pango <- P.cairoCreateContext Nothing
-    layout <- P.createLayout pango
-    P.layoutSetText pango text
+    pango <- P.contextNew
+    layout <- P.layoutNew pango
+    P.layoutSetText layout text (-1)
     P.layoutSetFontDescription layout (Just font)
-    (_, P.Rectangle _ _ w h) <- P.layoutGetPixelExtents layout
+    (_, rect) <- P.layoutGetPixelExtents layout
+    w <- P.getRectangleWidth rect
+    h <- P.getRectangleHeight rect
 
-    renderToTexture w h $ do
+    renderToTexture (fromIntegral w) (fromIntegral h) $ do
         C.setSourceRGBA 0 0 0 0
         C.paint
         C.setSourceRGBA 1 1 1 1
-        P.showLayout layout
+        toRender $ flip PC.showLayout layout
 
 renderToTexture :: Int -> Int -> C.Render a -> IO TextureObject
 renderToTexture w h render = do
@@ -83,17 +87,22 @@ drawTexture (x,y) t = do
     vertex' = vertex :: Vertex2 GLfloat -> IO ()
     texCoord' = texCoord :: TexCoord2 GLint -> IO ()
 
-renderLegend :: P.FontDescription -> [(Color4 Double, String)] -> IO TextureObject
+renderLegend :: P.FontDescription -> [(Color4 Double, T.Text)] -> IO TextureObject
 renderLegend font [] = error "legend with no entries"
 renderLegend font entries = do
-    pango <- P.cairoCreateContext Nothing
+    pango <- P.contextNew
     layouts <- forM entries $ \(_, s)->do
-        layout <- P.layoutText pango s
+        layout <- P.layoutNew pango
+        P.layoutSetText layout s (-1)
         P.layoutSetFontDescription layout (Just font)
         return layout
+
     sizes <- forM layouts $ \layout->do
-        (_, P.Rectangle _ _ w h) <- P.layoutGetPixelExtents layout
-        return (w,h)
+        (_, rect) <- P.layoutGetPixelExtents layout
+        w <- P.getRectangleWidth rect
+        h <- P.getRectangleHeight rect
+        return (fromIntegral w, fromIntegral h)
+
     let lineSpacing = 1.2
         h = maximum (map (\(_,h)->lineSpacing * realToFrac h) sizes)
         w = maximum (map (\(w,_)->w) sizes)
@@ -115,7 +124,7 @@ renderLegend font entries = do
             let Color4 r g b a = fmap (round . (*0xffff)) color
             C.moveTo (realToFrac $ pad ^. _x) (n*h + realToFrac (pad ^. _y))
             --P.setSourceColor $ P.Color r g b
-            P.showLayout layout
+            toRender $ flip PC.showLayout layout
 
 roundedRect :: V2 Double -> V2 Double -> Double -> C.Render ()
 roundedRect (V2 x0 y0) (V2 x1 y1) r = do

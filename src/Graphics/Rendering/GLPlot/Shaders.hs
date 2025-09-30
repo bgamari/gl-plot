@@ -2,7 +2,7 @@ module Graphics.Rendering.GLPlot.Shaders
     ( buildProgram
     ) where
 
-import Control.Monad.Trans.Either
+import Control.Monad.Trans.Except
 import Control.Monad.IO.Class
 import qualified Data.ByteString.Char8 as BS
 import Graphics.Rendering.OpenGL.GL
@@ -27,17 +27,17 @@ fragmentShader = BS.pack $ unlines
     , "}"
     ]
 
-newShader :: ShaderType -> BS.ByteString -> EitherT String IO Shader
+newShader :: ShaderType -> BS.ByteString -> ExceptT String IO Shader
 newShader ty src = do
     shader <- liftIO $ createShader ty
     liftIO $ shaderSourceBS shader $= src
     liftIO $ compileShader shader
     status <- liftIO $ get $ compileStatus shader
     if status
-      then right shader
-      else liftIO (get $ shaderInfoLog shader) >>= left
+      then return shader
+      else liftIO (get $ shaderInfoLog shader) >>= throwE
 
-buildProgram :: EitherT String IO Program
+buildProgram :: ExceptT String IO Program
 buildProgram = do
     prg <- liftIO createProgram
     vertex <- newShader VertexShader vertexShader

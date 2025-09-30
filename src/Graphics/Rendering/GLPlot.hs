@@ -20,20 +20,21 @@ module Graphics.Rendering.GLPlot
 
 import Data.Foldable
 import Data.Maybe (fromMaybe, catMaybes, mapMaybe)
+import qualified Data.Text as T
 import Control.Monad (when, forever, void, liftM, forM)
-import Control.Monad.Trans.Either
+import Control.Monad.Trans.Except
 import Control.Lens hiding (Context)
 import Linear
 import Linear.OpenGL
 
-import Foreign.ForeignPtr.Safe
+import Foreign.ForeignPtr
 import Foreign.Ptr (nullPtr)
 import qualified Data.Vector.Storable as V
 import           Graphics.UI.GLFW as GLFW
 import           Graphics.Rendering.OpenGL.GL hiding (Points, Lines, Rect(..))
 import qualified Graphics.Rendering.OpenGL.GL as GL
 import           Graphics.Rendering.OpenGL.GLU as GLU
-import qualified Graphics.Rendering.Pango as P
+import qualified GI.Pango as P
 import Control.Concurrent
 import Control.Concurrent.STM
 
@@ -111,7 +112,7 @@ newPlot mainloop title = do
 
     GLFW.makeContextCurrent (Just window)
     let shaderError e = error $ "Failed to build shader program: "++e
-    program <- either shaderError id `fmap` runEitherT buildProgram
+    program <- either shaderError id `fmap` runExceptT buildProgram
     GLFW.makeContextCurrent Nothing
 
     windowVar <- newTMVarIO window
@@ -178,7 +179,7 @@ redrawPlotLegend plot = schedulePlotTask plot $ const $ do
     curves <- atomically $ readTVar (plot ^. pCurves)
     let curveToEntry c =
           case p ^. cName of
-            Just name -> Just (fmap realToFrac $ p ^. cColor, name)
+            Just name -> Just (fmap realToFrac $ p ^. cColor, T.pack name)
             Nothing   -> Nothing
           where p = c ^. cParams
         entries = mapMaybe curveToEntry curves

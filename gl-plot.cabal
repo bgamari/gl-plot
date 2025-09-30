@@ -18,6 +18,7 @@ library
                        Graphics.Rendering.GLPlot.Lenses,
                        Graphics.Rendering.GLPlot.Shaders,
                        Graphics.Rendering.GLPlot.Text
+  hs-source-dirs:      src
   build-depends:       base >=4.6,
                        vector >=0.10,
                        transformers,
@@ -28,7 +29,9 @@ library
                        linear >=1.1,
                        linear-opengl,
                        stm >=2.4,
+                       text,
                        gi-cairo-render,
+                       gi-cairo-connector,
                        gi-pango,
                        gi-pangocairo,
                        bytestring
@@ -45,7 +48,4 @@ executable glplot-test
                        lens >=3.9,
                        linear >=1.1,
                        linear-opengl,
-                       stm >=2.4,
-                       gi-cairo-render,
-                       gi-pango,
-                       bytestring
+                       gl-plot
