@@ -28,8 +28,9 @@ library
                        linear >=1.1,
                        linear-opengl,
                        stm >=2.4,
-                       gi-cairo,
+                       gi-cairo-render,
                        gi-pango,
+                       gi-pangocairo,
                        bytestring
 
 executable glplot-test
@@ -45,6 +46,6 @@ executable glplot-test
                        linear >=1.1,
                        linear-opengl,
                        stm >=2.4,
-                       gi-cairo,
+                       gi-cairo-render,
                        gi-pango,
                        bytestring

@@ -5,9 +5,10 @@ module Graphics.Rendering.GLPlot.Text
   , renderLegend
   ) where
 
-import qualified Graphics.Rendering.Cairo as C
-import           Graphics.Rendering.Cairo (Surface)
-import qualified Graphics.Rendering.Pango as P
+import qualified GI.Cairo.Render as C
+import           GI.Cairo.Render (Surface)
+--import qualified GI.Pango as P
+import qualified GI.PangoCairo as P
 import qualified Data.ByteString.Unsafe as BSU
 import Graphics.Rendering.OpenGL.GL
 import Graphics.Rendering.OpenGL.GLU.Matrix
@@ -23,7 +24,8 @@ renderText text = do
     P.fontDescriptionSetSize font 24
 
     pango <- P.cairoCreateContext Nothing
-    layout <- P.layoutText pango text
+    layout <- P.createLayout pango
+    P.layoutSetText pango text
     P.layoutSetFontDescription layout (Just font)
     (_, P.Rectangle _ _ w h) <- P.layoutGetPixelExtents layout
 
@@ -112,7 +114,7 @@ renderLegend font entries = do
         forM_ (zip3 [0..] colors layouts) $ \(n,color,layout)->do
             let Color4 r g b a = fmap (round . (*0xffff)) color
             C.moveTo (realToFrac $ pad ^. _x) (n*h + realToFrac (pad ^. _y))
-            P.setSourceColor $ P.Color r g b
+            --P.setSourceColor $ P.Color r g b
             P.showLayout layout
 
 roundedRect :: V2 Double -> V2 Double -> Double -> C.Render ()

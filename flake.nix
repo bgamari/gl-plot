@@ -13,11 +13,21 @@
         };
         devShells.default = pkgs.mkShell {
           inputsFrom = [ self.packages.${system}.gl-plot ];
-          packages = with pkgs; [
-            pango
+          packages = (with pkgs; [
             cairo
+            libglvnd
+            libGLU
+            libsysprof-capture
+            pango
+            pcre2
             pkg-config
-          ];
+          ]) ++ (with pkgs.xorg; [
+            libXinerama
+            libXrandr
+            libXi
+            libXxf86vm
+            libXcursor
+          ]);
         };
         apps = rec {
           gl-plot = flake-utils.lib.mkApp { drv = self.packages.${system}.gl-plot; };
